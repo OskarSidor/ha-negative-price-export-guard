@@ -2,7 +2,7 @@
 
 Automatizácia pre Home Assistant, ktorá pomáha majiteľom fotovoltiky obmedziť export elektriny do siete počas záporných spotových cien. Projekt vznikol pre slovenské podmienky, hlavne pre situácie, keď dodávateľ nepočíta elektrinu dodanú do virtuálnej batérie alebo podobnej služby počas záporných cien.
 
-Typický príklad: počas slnečného dňa sa batéria nabije doplna, fotovoltika má prebytok, ale OKTE spotová cena je záporná. Ak sa elektrina vtedy odošle do siete, môže mať nulovú hodnotu pre virtuálnu batériu. Tento balík sa snaží vytvoriť miesto v batérii ešte pred záporným cenovým oknom, aby sa počas záporných cien čo najviac energie uložilo lokálne namiesto posielania do siete.
+Typický príklad: počas slnečného dňa sa batéria nabije doplna, fotovoltika má prebytok, ale OKTE spotová cena je záporná. Ak sa elektrina vtedy odošle do siete, môže mať nulovú hodnotu pre virtuálnu batériu. Tento mini-projekt sa snaží vytvoriť miesto v batérii ešte pred záporným cenovým oknom, aby sa počas záporných cien čo najviac energie uložilo lokálne namiesto posielania do siete.
 
 English version: [README.en.md](README.en.md)
 
