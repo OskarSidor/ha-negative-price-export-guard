@@ -1,10 +1,8 @@
 # Home Assistant package: Ochrana exportu pri zapornych spotovych cenach
 #
 # Subor je urceny na vlozenie do adresara packages/ v Home Assistant.
-# Slovenske nazvy entit su iba zobrazovane nazvy. default_entity_id drzi stabilne entity_id,
+# Slovenske nazvy entit su zobrazovane nazvy. default_entity_id drzi stabilne entity_id,
 # aby sablony a automatizacie fungovali aj po premenovani nazvu v UI.
-#
-# Pred pouzitim upravte entity_id v casti "Ocakavane entity" podla vlastnej instalacie.
 #
 # Ocakavane entity z integracii:
 # - sensor.okte_ceny_elektriny_prices               # OKTE ceny, musi mat atribut prices
@@ -107,7 +105,6 @@ input_boolean:
     initial: true
 
 template:
-  # 7-dnovy priemer spotreby iba pocas solarneho okna 07:00-17:00.
   - trigger:
       - platform: time
         at: "17:00:00"
@@ -136,7 +133,6 @@ template:
             {% set new = ([sample] + old)[:7] if sample > 0 else old %}
             {{ new | join(',') }}
 
-  # Aktualna OKTE spotova cena vypocitana z atributu prices.
   - trigger:
       - platform: time_pattern
         minutes: "/15"
@@ -155,8 +151,7 @@ template:
           {% set ns = namespace(price=none) %}
           {% for p in prices %}
             {% set start_local = as_local(as_datetime(p.start)) %}
-            {% set end_local = start_local + timedelta(minutes=15) %}
-            {% if start_local <= now_local and now_local < end_local %}
+            {% if start_local <= now_local and now_local < start_local + timedelta(minutes=15) %}
               {% set ns.price = p.price | float %}
             {% endif %}
           {% endfor %}
@@ -164,7 +159,6 @@ template:
         attributes:
           source: okte_prices_attribute
 
-  # Hlavne vypocty. Trigger-based sablony znizuju zataz CPU.
   - trigger:
       - platform: time_pattern
         minutes: "/10"
@@ -413,7 +407,6 @@ template:
              and surplus > threshold
              and export_w > 0 }}
 
-  # Uctovne senzory: energia, uspora a strateny potencial.
   - trigger:
       - platform: state
         entity_id: sensor.inverter_total_energy_export
@@ -534,9 +527,12 @@ automation:
           - sensor.magna_recommended_export_power
           - input_boolean.magna_export_guard_enabled
           - input_boolean.magna_allow_battery_early_export
+          - select.inverter_work_mode
       - platform: numeric_state
         entity_id: sensor.inverter_battery
         above: 99.5
+      - platform: homeassistant
+        event: start
     action:
       - choose:
           - conditions:
@@ -593,11 +589,16 @@ automation:
                 state: "on"
             sequence:
               - variables:
+                  recommended_w: "{{ states('sensor.magna_recommended_export_power') | float(0) }}"
+                  live_surplus_w: >
+                    {{ [states('sensor.inverter_pv_power') | float(0) -
+                        states('sensor.inverter_load_power') | float(0) - 200, 0] | max }}
+                  max_w: "{{ states('input_number.magna_max_export_power_w') | float(3000) }}"
                   export_power_target: >
                     {% if states('sensor.inverter_battery') | float(0) >= 99.5 %}
-                      {{ states('input_number.magna_max_export_power_w') | float(3000) }}
+                      {{ [[recommended_w | float(0), live_surplus_w | float(0)] | max, max_w | float(3000)] | min }}
                     {% else %}
-                      {{ states('sensor.magna_recommended_export_power') | float(0) }}
+                      {{ recommended_w | float(0) }}
                     {% endif %}
               - if:
                   - condition: template
@@ -625,6 +626,32 @@ automation:
               - service: input_boolean.turn_on
                 target:
                   entity_id: input_boolean.magna_export_guard_active
+
+          - conditions:
+              - condition: state
+                entity_id: input_boolean.magna_export_guard_enabled
+                state: "on"
+              - condition: state
+                entity_id: select.inverter_work_mode
+                state: "Zero Export To CT"
+              - condition: numeric_state
+                entity_id: sensor.inverter_battery
+                above: 99.5
+              - condition: numeric_state
+                entity_id: sensor.magna_okte_spotova_cena
+                above: -0.001
+            sequence:
+              - if:
+                  - condition: template
+                    value_template: >
+                      {{ (states('number.inverter_export_surplus_power') | float(0) -
+                          states('input_number.magna_max_export_power_w') | float(3000)) | abs > 50 }}
+                then:
+                  - service: number.set_value
+                    target:
+                      entity_id: number.inverter_export_surplus_power
+                    data:
+                      value: "{{ states('input_number.magna_max_export_power_w') | float(3000) }}"
 
           - conditions:
               - condition: state
