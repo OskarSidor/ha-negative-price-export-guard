@@ -1,12 +1,8 @@
 # Detailed Setup Guide
 
-This guide walks through installing and tuning the negative-price export guard package in Home Assistant.
-
-The main README gives the short version. This file is intentionally more detailed and is meant for the first deployment or for adapting the package to a different inverter setup.
+This guide walks through installing and tuning the negative-price export guard package in Home Assistant. The main README gives the short version; this file is for first deployment, adaptation to another inverter, and tuning.
 
 ## 1. Confirm The Required Integrations
-
-Before copying the package, make sure the required integrations are already working.
 
 ### OKTE Prices
 
@@ -20,9 +16,7 @@ The package expects an OKTE price entity like:
 sensor.okte_ceny_elektriny_prices
 ```
 
-This entity must expose a `prices` attribute containing 15-minute periods with timestamps and prices.
-
-The package does not rely only on the OKTE sensor state, because that state may update later than the actual 15-minute price boundary. Instead, it calculates the current price from the `prices` attribute.
+This entity must expose a `prices` attribute containing 15-minute periods with timestamps and prices. The package calculates the current price from this attribute instead of relying only on the entity state, because the state may update later than the real 15-minute price boundary.
 
 ### Solcast PV Forecast
 
@@ -36,7 +30,7 @@ The package expects a daily forecast entity like:
 sensor.solcast_pv_forecast_predpoved_dnes
 ```
 
-The entity should expose a `detailedForecast` attribute. The package uses that detailed forecast to estimate how much PV production is expected before and during the next negative-price window.
+The entity should expose a `detailedForecast` attribute. The package uses that detailed forecast to estimate PV production before and during the next price window below your configured floor.
 
 ### Inverter Integration
 
@@ -46,16 +40,7 @@ Recommended Solarman integration:
 
 - [ha-solarman](https://github.com/davidrapan/ha-solarman)
 
-At minimum, Home Assistant must be able to:
-
-- read battery SOC,
-- read current PV power,
-- read current house load power,
-- read daily PV production,
-- read daily house load consumption,
-- read total grid export,
-- change the inverter work mode,
-- set the grid export power limit.
+At minimum, Home Assistant must be able to read battery SOC, PV power, house load power, daily PV production, daily house load consumption, total grid export, and it must be able to change inverter work mode and set the grid export power limit.
 
 ## 2. Enable Home Assistant Packages
 
@@ -109,8 +94,6 @@ This value is used to estimate what exported energy would have been worth if it 
 
 Open `negative_price_export_guard.yaml` and check every entity in the expected-entities section.
 
-Default mapping:
-
 | Purpose | Default entity |
 |---|---|
 | OKTE prices | `sensor.okte_ceny_elektriny_prices` |
@@ -126,11 +109,9 @@ Default mapping:
 | Export power limit | `number.inverter_export_surplus_power` |
 | Energy value helper | `input_number.cena_elektriny_nocny_tarif` |
 
-If your entities use different names, replace all occurrences in the package.
+If your entities use different names, replace all occurrences in the package. Do not try to put entity IDs into `input_text` helpers for triggers; Home Assistant triggers need real entity IDs in the YAML.
 
 ## 5. Check Units
-
-This is important.
 
 The package assumes:
 
@@ -145,17 +126,11 @@ The package assumes:
 | `sensor.inverter_battery` | % |
 | `sensor.inverter_battery_capacity` | kWh |
 
-If your inverter exposes power in kW instead of W, you must adjust the calculations that use PV power, load power, and export power.
+If your inverter exposes power in kW instead of W, adjust the calculations that use PV power, load power, and export power.
 
 ## 6. Confirm Inverter Mode Names
 
-The package expects these exact options in:
-
-```yaml
-select.inverter_work_mode
-```
-
-Expected options:
+The package expects these exact options in `select.inverter_work_mode`:
 
 ```text
 Export First
@@ -172,14 +147,7 @@ In Home Assistant:
 Settings -> Developer Tools -> YAML -> Check configuration
 ```
 
-Do not restart until this passes.
-
-If the check fails, the most common causes are:
-
-- entity IDs that do not exist,
-- duplicated YAML keys from manual editing,
-- indentation issues,
-- inverter mode option names that do not match your integration.
+Do not restart until this passes. Common causes of validation errors are wrong entity IDs, duplicated YAML keys, indentation issues, invalid options under YAML helpers, and inverter mode option names that do not match your integration.
 
 ## 8. Restart And Verify New Entities
 
@@ -198,15 +166,14 @@ binary_sensor.export_optimizer_export_wanted
 input_boolean.export_optimizer_export_guard_enabled
 input_boolean.export_optimizer_allow_battery_early_export
 input_boolean.export_optimizer_export_guard_active
+input_number.export_optimizer_typical_idle_power_w
 ```
 
-## 9. First-Day Behavior
+## 9. First-Day Behavior And Learning
 
-On the first day, the 7-day solar-window consumption average has no history yet. The package uses a fallback value until it collects real samples.
+The package records the house load counter at 07:00 and evaluates the 07:00-18:00 consumption window at 18:00. The sensor `sensor.export_optimizer_solar_window_load_7d_average` stores the last seven daily samples in the `past_consumption` attribute and uses them for the average.
 
-The daily learning logic records the house load at 07:00 and samples the 07:00-18:00 consumption window at 18:00.
-
-Expect the estimate to improve after several days.
+On the first day, the average has little or no history. Expect the estimate to improve after several sunny days.
 
 ## 10. Recommended Initial Tuning
 
@@ -216,26 +183,42 @@ Start conservatively:
 |---|---:|
 | `input_number.export_optimizer_min_reserve_soc` | `40` |
 | `input_number.export_optimizer_consumption_margin_kwh` | `2` |
+| `input_number.export_optimizer_typical_idle_power_w` | `200-500` |
 | `input_number.export_optimizer_export_surplus_threshold_kwh` | `1` |
 | `input_number.export_optimizer_min_export_power_w` | `500` |
 | `input_number.export_optimizer_max_export_power_w` | `3000` |
 | `input_number.export_optimizer_price_floor` | `0` |
 
-Then observe at least a few sunny days with negative or near-zero price periods.
+The typical idle power should include the usual minimum house load and inverter self-consumption during the remaining solar window. It prevents the remaining-load estimate from falling unrealistically to zero too early in the day.
 
-## 11. How To Tune
+## 11. Battery-Saving Mode
+
+If you turn off:
+
+```text
+input_boolean.export_optimizer_allow_battery_early_export
+```
+
+then the recommended export power is capped to the current live PV surplus:
+
+```text
+PV power - house load power - 200 W
+```
+
+This reduces battery cycling, but it may not create enough headroom before a long or strong negative-price period.
+
+## 12. How To Tune
 
 ### If Energy Still Exports During Negative Prices
 
-Increase one or more of:
+Try these in order:
 
-```text
-input_number.export_optimizer_max_export_power_w
-input_number.export_optimizer_consumption_margin_kwh
-input_number.export_optimizer_export_surplus_threshold_kwh
-```
+- Increase `input_number.export_optimizer_max_export_power_w` if the inverter is allowed to export more.
+- Increase `input_number.export_optimizer_export_surplus_threshold_kwh` if you want the algorithm to create more buffer before the negative window.
+- Enable `input_boolean.export_optimizer_allow_battery_early_export` if battery-saving mode is too restrictive.
+- Check whether Solcast is underestimating production or whether your battery capacity/SOC entities are inaccurate.
 
-Also check whether your Solcast forecast is underestimating production.
+Do not blindly increase `input_number.export_optimizer_consumption_margin_kwh`: a higher consumption margin tells the algorithm to expect more local use, which can reduce early export.
 
 ### If The Battery Discharges Too Much
 
@@ -250,6 +233,16 @@ or disable:
 ```text
 input_boolean.export_optimizer_allow_battery_early_export
 ```
+
+### If The Remaining Load Estimate Falls Too Low
+
+Increase:
+
+```text
+input_number.export_optimizer_typical_idle_power_w
+```
+
+This is useful when the learned daily consumption is mostly already used, but the house still has a predictable base load until 18:00.
 
 ### If The Automation Starts Too Often
 
@@ -271,7 +264,7 @@ input_number.export_optimizer_max_export_power_w
 
 The automation includes logic to set the export limit to the maximum value when the battery is full and the inverter is in `Zero Export To CT`, as long as the spot price is non-negative.
 
-## 12. Suggested Dashboard
+## 13. Suggested Dashboard
 
 A simple debug dashboard should include:
 
@@ -283,8 +276,10 @@ binary_sensor.export_optimizer_export_wanted
 input_boolean.export_optimizer_export_guard_enabled
 input_boolean.export_optimizer_allow_battery_early_export
 input_boolean.export_optimizer_export_guard_active
+sensor.export_optimizer_remaining_solar_window_load_estimate
 sensor.export_optimizer_expected_surplus_today
 sensor.export_optimizer_battery_target_soc
+input_number.export_optimizer_typical_idle_power_w
 number.inverter_export_surplus_power
 select.inverter_work_mode
 sensor.inverter_battery
@@ -294,7 +289,7 @@ sensor.inverter_load_power
 
 This makes it much easier to see why the automation is or is not active.
 
-## 13. Accounting Sensors
+## 14. Accounting Sensors
 
 The package creates cumulative sensors for tracking results:
 
@@ -307,11 +302,9 @@ The package creates cumulative sensors for tracking results:
 
 These are cumulative sensors. For daily values, use graph/statistics cards that calculate a daily difference.
 
-## 14. Performance Notes
+## 15. Performance Notes
 
-The package uses trigger-based template sensors on purpose.
-
-Avoid turning these templates into regular triggerless template sensors if they contain:
+The package uses trigger-based template sensors on purpose. Avoid turning templates containing these into regular triggerless template sensors:
 
 ```text
 now()
@@ -322,7 +315,7 @@ state_attr(... detailedForecast ...)
 
 Those functions and loops can cause frequent template recalculation and high CPU usage on smaller Home Assistant systems.
 
-## 15. Safety Checklist
+## 16. Safety Checklist
 
 Before leaving the automation enabled unattended:
 
@@ -333,16 +326,8 @@ Before leaving the automation enabled unattended:
 - Confirm the battery reserve is high enough for your household.
 - Start with a low max export power and increase gradually.
 
-## 16. Adapting To Other Countries Or Providers
+## 17. Adapting To Other Countries Or Providers
 
-The idea is not Slovakia-specific, but the price source and supplier rules are.
-
-To adapt it elsewhere, replace:
-
-- the OKTE price entity,
-- the price attribute parsing if needed,
-- the buyout/virtual-battery value calculation,
-- the inverter mode names,
-- the solar window end time if local PV production differs.
+The idea is not Slovakia-specific, but the price source and supplier rules are. To adapt it elsewhere, replace the OKTE price entity, price parsing if needed, the value calculation, inverter mode names, and the solar window if local PV production differs.
 
 The core concept remains the same: create battery headroom before negative-price windows, avoid strategic export during negative prices, and track whether the tuning is working.
