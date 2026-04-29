@@ -80,7 +80,7 @@ config/packages/negative_price_export_guard.yaml
 
 ## 3. Vytvorte pomocníka pre hodnotu energie
 
-Balík štandardne očakáva tohto pomocníka:
+Balík očakáva tohto pomocníka:
 
 ```yaml
 input_number.cena_elektriny_nocny_tarif
@@ -105,32 +105,28 @@ Odporúčané nastavenie:
 
 Táto hodnota sa používa na odhad toho, akú hodnotu by exportovaná energia mala, keby sa započítala do virtuálnej batérie. Ak si nie ste istí, začnite približnou hodnotou vášho nočného tarifu v EUR/kWh.
 
-Ak používate inú entitu pomocníka, po inštalácii zmeňte `input_text.export_optimizer_entity_energy_value_helper`.
-
 ## 4. Namapujte svoje entity
 
-Balík drží všetky externé entity v jednej konfiguračnej sekcii na začiatku súboru `negative_price_export_guard.yaml`.
+Otvorte `negative_price_export_guard.yaml` a skontrolujte každú entitu v časti očakávaných entít.
 
-Nájdite blok `input_text:` a upravte tieto hodnoty, ak sa vaše entity volajú inak:
+Predvolené mapovanie:
 
-| Mapovací pomocník | Predvolená hodnota |
+| Účel | Predvolená entita |
 |---|---|
-| `input_text.export_optimizer_entity_okte_prices` | `sensor.okte_ceny_elektriny_prices` |
-| `input_text.export_optimizer_entity_solcast_forecast_today` | `sensor.solcast_pv_forecast_predpoved_dnes` |
-| `input_text.export_optimizer_entity_today_load_consumption` | `sensor.inverter_today_load_consumption` |
-| `input_text.export_optimizer_entity_total_energy_export` | `sensor.inverter_total_energy_export` |
-| `input_text.export_optimizer_entity_today_production` | `sensor.inverter_today_production` |
-| `input_text.export_optimizer_entity_battery_soc` | `sensor.inverter_battery` |
-| `input_text.export_optimizer_entity_battery_capacity` | `sensor.inverter_battery_capacity` |
-| `input_text.export_optimizer_entity_pv_power` | `sensor.inverter_pv_power` |
-| `input_text.export_optimizer_entity_load_power` | `sensor.inverter_load_power` |
-| `input_text.export_optimizer_entity_inverter_work_mode` | `select.inverter_work_mode` |
-| `input_text.export_optimizer_entity_export_surplus_power` | `number.inverter_export_surplus_power` |
-| `input_text.export_optimizer_entity_energy_value_helper` | `input_number.cena_elektriny_nocny_tarif` |
-| `input_text.export_optimizer_mode_export_first` | `Export First` |
-| `input_text.export_optimizer_mode_zero_export` | `Zero Export To CT` |
+| OKTE ceny | `sensor.okte_ceny_elektriny_prices` |
+| Solcast predpoveď dnes | `sensor.solcast_pv_forecast_predpoved_dnes` |
+| Denná spotreba domu | `sensor.inverter_today_load_consumption` |
+| Celkový export do siete | `sensor.inverter_total_energy_export` |
+| Denná PV výroba | `sensor.inverter_today_production` |
+| SOC batérie | `sensor.inverter_battery` |
+| Kapacita batérie | `sensor.inverter_battery_capacity` |
+| Aktuálny PV výkon | `sensor.inverter_pv_power` |
+| Aktuálna spotreba domu | `sensor.inverter_load_power` |
+| Výber režimu meniča | `select.inverter_work_mode` |
+| Limit výkonu exportu | `number.inverter_export_surplus_power` |
+| Pomocník hodnoty energie | `input_number.cena_elektriny_nocny_tarif` |
 
-Tieto hodnoty môžete zmeniť priamo v YAML pred prvou inštaláciou alebo neskôr v Home Assistant ako textových pomocníkov. Je to zvyčajne jednoduchšie než hľadať entity v celom package súbore.
+Ak sa vaše entity volajú inak, nahraďte všetky výskyty v package súbore.
 
 ## 5. Skontrolujte jednotky
 
@@ -138,34 +134,35 @@ Toto je dôležité.
 
 Balík predpokladá:
 
-| Mapovací pomocník | Očakávaná jednotka odkazovanej entity |
+| Entita | Očakávaná jednotka |
 |---|---|
-| `input_text.export_optimizer_entity_pv_power` | W |
-| `input_text.export_optimizer_entity_load_power` | W |
-| `input_text.export_optimizer_entity_export_surplus_power` | W |
-| `input_text.export_optimizer_entity_today_load_consumption` | kWh |
-| `input_text.export_optimizer_entity_today_production` | kWh |
-| `input_text.export_optimizer_entity_total_energy_export` | kWh |
-| `input_text.export_optimizer_entity_battery_soc` | % |
-| `input_text.export_optimizer_entity_battery_capacity` | kWh |
+| `sensor.inverter_pv_power` | W |
+| `sensor.inverter_load_power` | W |
+| `number.inverter_export_surplus_power` | W |
+| `sensor.inverter_today_load_consumption` | kWh |
+| `sensor.inverter_today_production` | kWh |
+| `sensor.inverter_total_energy_export` | kWh |
+| `sensor.inverter_battery` | % |
+| `sensor.inverter_battery_capacity` | kWh |
 
 Ak váš menič poskytuje výkon v kW namiesto W, musíte upraviť výpočty používajúce PV výkon, spotrebu domu a exportný výkon.
 
 ## 6. Skontrolujte názvy režimov meniča
 
-Balík štandardne očakáva tieto možnosti:
+Balík očakáva tieto presné možnosti v:
+
+```yaml
+select.inverter_work_mode
+```
+
+Očakávané možnosti:
 
 ```text
 Export First
 Zero Export To CT
 ```
 
-Skontrolujte ich vo Vývojárskych nástrojoch Home Assistant. Ak váš menič používa iné názvy možností, zmeňte:
-
-```text
-input_text.export_optimizer_mode_export_first
-input_text.export_optimizer_mode_zero_export
-```
+Skontrolujte ich vo Vývojárskych nástrojoch Home Assistant. Ak váš menič používa iné názvy možností, upravte akcie automatizácie.
 
 ## 7. Spustite kontrolu konfigurácie
 
@@ -288,9 +285,11 @@ input_boolean.export_optimizer_allow_battery_early_export
 input_boolean.export_optimizer_export_guard_active
 sensor.export_optimizer_expected_surplus_today
 sensor.export_optimizer_battery_target_soc
-input_text.export_optimizer_entity_okte_prices
-input_text.export_optimizer_entity_inverter_work_mode
-input_text.export_optimizer_entity_export_surplus_power
+number.inverter_export_surplus_power
+select.inverter_work_mode
+sensor.inverter_battery
+sensor.inverter_pv_power
+sensor.inverter_load_power
 ```
 
 Takto je oveľa jednoduchšie vidieť, prečo automatizácia je alebo nie je aktívna.
@@ -338,11 +337,11 @@ Predtým, než necháte automatizáciu bežať bez dozoru:
 
 Myšlienka nie je striktne slovenská, ale zdroj cien a pravidlá dodávateľa sú lokálne.
 
-Pri použití inde upravte:
+Pri použití inde bude treba nahradiť:
 
-- namapovanú entitu so spotovými cenami,
+- entitu so spotovými cenami,
 - parsovanie atribútov cien, ak je iné,
-- pomocníka pre výpočet hodnoty výkupu alebo virtuálnej batérie,
+- výpočet hodnoty výkupu alebo virtuálnej batérie,
 - názvy režimov meniča,
 - koniec solárneho okna, ak je lokálna výroba posunutá.
 
