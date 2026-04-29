@@ -143,7 +143,7 @@ template:
             {% set samples = old %}
           {% endif %}
           {% set values = samples | map(attribute='consumption') | map('float') | list %}
-          {{ ((values | sum) / (values | count)) | round(2) if values | count > 0 else 6 }}
+          {{ ((values | sum) / (values | count)) | round(2) if values | count > 0 else 8 }}
         attributes:
           past_consumption: >
             {% set recorded = as_datetime(states('input_datetime.export_optimizer_solar_window_start_recorded')) %}
