@@ -1,7 +1,10 @@
 # Home Assistant package: Ochrana exportu pri zapornych spotovych cenach
 #
-# Tento subor je pripraveny ako Home Assistant package.
-# Pred pouzitim skontrolujte a upravte entity_id v casti "Ocakavane entity".
+# Subor je urceny na vlozenie do adresara packages/ v Home Assistant.
+# Slovenske nazvy entit su iba zobrazovane nazvy. default_entity_id drzi stabilne entity_id,
+# aby sablony a automatizacie fungovali aj po premenovani nazvu v UI.
+#
+# Pred pouzitim upravte entity_id v casti "Ocakavane entity" podla vlastnej instalacie.
 #
 # Ocakavane entity z integracii:
 # - sensor.okte_ceny_elektriny_prices               # OKTE ceny, musi mat atribut prices
@@ -10,7 +13,7 @@
 # - sensor.inverter_total_energy_export             # celkovy export do siete v kWh, stale rastuci counter
 # - sensor.inverter_today_production                # dnesna PV vyroba v kWh
 # - sensor.inverter_battery                         # SOC baterie v %
-# - sensor.inverter_battery_capacity                # kapacita baterie v kWh, ak chyba pouzije sa fallback 20 kWh
+# - sensor.inverter_battery_capacity                # kapacita baterie v kWh, fallback je 20 kWh
 # - sensor.inverter_pv_power                        # aktualny PV vykon vo W
 # - sensor.inverter_load_power                      # aktualna spotreba domu vo W
 # - select.inverter_work_mode                       # rezim menica: Export First / Zero Export To CT
@@ -105,12 +108,12 @@ input_boolean:
 
 template:
   # 7-dnovy priemer spotreby iba pocas solarneho okna 07:00-17:00.
-  # Pouziva dnesnu spotrebu domu a ranny zaznam z automatizacie nizsie.
   - trigger:
       - platform: time
         at: "17:00:00"
     sensor:
       - name: Magna - priemer spotreby v solarnom okne 7d
+        default_entity_id: sensor.magna_solar_window_load_7d_average
         unique_id: magna_solar_window_load_7d_average
         unit_of_measurement: kWh
         state: >
@@ -134,7 +137,6 @@ template:
             {{ new | join(',') }}
 
   # Aktualna OKTE spotova cena vypocitana z atributu prices.
-  # Nepouziva stav OKTE senzora, pretoze ten sa v niektorych instalaciach oneskoruje.
   - trigger:
       - platform: time_pattern
         minutes: "/15"
@@ -143,7 +145,8 @@ template:
       - platform: state
         entity_id: sensor.okte_ceny_elektriny_prices
     sensor:
-      - name: Magna OKTE Spotova Cena
+      - name: Magna OKTE spotova cena
+        default_entity_id: sensor.magna_okte_spotova_cena
         unique_id: magna_okte_spot_price
         unit_of_measurement: EUR/MWh
         state: >
@@ -161,8 +164,7 @@ template:
         attributes:
           source: okte_prices_attribute
 
-  # Hlavne vypocty. Trigger-based sablony su pouzite zamerne, aby sa neprepocitavali kazdu minutu
-  # alebo pri kazdej 5-sekundovej zmene SOC/vykonu menica.
+  # Hlavne vypocty. Trigger-based sablony znizuju zataz CPU.
   - trigger:
       - platform: time_pattern
         minutes: "/10"
@@ -181,6 +183,7 @@ template:
           - input_number.magna_min_reserve_soc
     sensor:
       - name: Magna - zostavajuca PV predpoved dnes
+        default_entity_id: sensor.magna_remaining_pv_forecast_today
         unique_id: magna_remaining_pv_forecast_today
         unit_of_measurement: kWh
         state: >
@@ -189,6 +192,7 @@ template:
           {{ [forecast - actual, 0] | max | round(2) }}
 
       - name: Magna - spotreba v solarnom okne dnes
+        default_entity_id: sensor.magna_solar_window_load_today
         unique_id: magna_solar_window_load_today
         unit_of_measurement: kWh
         state: >
@@ -203,6 +207,7 @@ template:
           {% endif %}
 
       - name: Magna - odhad zostavajucej spotreby v solarnom okne
+        default_entity_id: sensor.magna_remaining_solar_window_load_estimate
         unique_id: magna_remaining_solar_window_load_estimate
         unit_of_measurement: kWh
         state: >
@@ -216,6 +221,7 @@ template:
           {% endif %}
 
       - name: Magna - minuty zapornej ceny do 17:00
+        default_entity_id: sensor.magna_negative_price_minutes_until_17
         unique_id: magna_negative_price_minutes_until_17
         unit_of_measurement: min
         state: >
@@ -233,6 +239,7 @@ template:
           {{ ns.minutes }}
 
       - name: Magna - cielove SOC baterie
+        default_entity_id: sensor.magna_battery_target_soc
         unique_id: magna_battery_target_soc
         unit_of_measurement: "%"
         state: >
@@ -244,6 +251,7 @@ template:
           {{ [reserve + (uncovered_load / cap * 100), 95] | min | round(0) }}
 
       - name: Magna - ocakavany prebytok dnes
+        default_entity_id: sensor.magna_expected_surplus_today
         unique_id: magna_expected_surplus_today
         unit_of_measurement: kWh
         state: >
@@ -256,6 +264,7 @@ template:
           {{ (battery_above_reserve + remaining_pv - remaining_load) | round(2) }}
 
       - name: Magna - odporucany vykon exportu
+        default_entity_id: sensor.magna_recommended_export_power
         unique_id: magna_recommended_export_power
         unit_of_measurement: W
         state: >
@@ -280,7 +289,6 @@ template:
             {% set load_power = states('sensor.inverter_load_power') | float(0) %}
             {% set live_surplus_w = [pv_power - load_power - 200, 0] | max %}
 
-            {# Najdi najblizsi blok zapornej ceny pred 17:00. #}
             {% set neg = namespace(start=none, end=none, done=false) %}
             {% for p in prices %}
               {% set s = as_local(as_datetime(p.start)) %}
@@ -300,7 +308,6 @@ template:
             {% if neg.start is none %}
               0
             {% else %}
-              {# Pocitaj iba nezaporne minuty pred najblizsim zapornym blokom. #}
               {% set mins = namespace(before_neg=0) %}
               {% for p in prices %}
                 {% set s = as_local(as_datetime(p.start)) %}
@@ -314,7 +321,6 @@ template:
                 {% endif %}
               {% endfor %}
 
-              {# Odhad PV energie pred a pocas najblizsieho zaporneho bloku. #}
               {% set pv = namespace(before_neg=0, during_neg=0) %}
               {% for f in forecast %}
                 {% set fs = as_local(as_datetime(f.period_start)) %}
@@ -339,14 +345,12 @@ template:
                 {% endif %}
               {% endfor %}
 
-              {# Spotrebu rozdelujeme rovnomerne cez zvysok solarneho okna. #}
               {% set minutes_to_17 = ((as_timestamp(window_end) - as_timestamp(now_local)) / 60) %}
               {% set load_rate = remaining_load / minutes_to_17 if minutes_to_17 > 0 else 0 %}
               {% set load_before_neg = load_rate * mins.before_neg %}
               {% set neg_minutes = ((as_timestamp(neg.end) - as_timestamp(neg.start)) / 60) %}
               {% set load_during_neg = load_rate * neg_minutes %}
 
-              {# Kolko energie treba uvolnit pred zapornym blokom, aby bateria dokazala absorbovat PV pocas neho. #}
               {% if mins.before_neg > 0 %}
                 {% set net_before_neg = pv.before_neg - load_before_neg %}
                 {% set net_during_neg = pv.during_neg - load_during_neg %}
@@ -359,7 +363,6 @@ template:
               {% if battery_export_allowed %}
                 {% set raw_w = pre_neg_w %}
               {% else %}
-                {# Rezim bez vyuzitia baterie: exportujeme najviac aktualny PV prebytok minus 200 W rezerva. #}
                 {% set raw_w = [pre_neg_w, live_surplus_w] | min %}
               {% endif %}
 
@@ -373,8 +376,6 @@ template:
             {% endif %}
           {% endif %}
 
-  # Binary sensor oddeleny od hlavnych vypoctov. Pouziva sa iba na rozhodnutie,
-  # ci ma automatizacia prepnut menic do Export First.
   - trigger:
       - platform: time_pattern
         minutes: "/10"
@@ -389,6 +390,7 @@ template:
           - input_boolean.magna_allow_battery_early_export
     binary_sensor:
       - name: Magna - export pozadovany
+        default_entity_id: binary_sensor.magna_export_wanted
         unique_id: magna_export_wanted
         state: >
           {% set enabled = is_state('input_boolean.magna_export_guard_enabled','on') %}
@@ -411,13 +413,13 @@ template:
              and surplus > threshold
              and export_w > 0 }}
 
-  # Uctovne senzory: kolko energie bolo presunute, kolko sa usetrilo a kolko potencialne uslo
-  # pre export pocas zapornej spotovej ceny.
+  # Uctovne senzory: energia, uspora a strateny potencial.
   - trigger:
       - platform: state
         entity_id: sensor.inverter_total_energy_export
     sensor:
       - name: Magna - energia exportovana pocas zapornej ceny
+        default_entity_id: sensor.magna_exported_energy_during_negative_spot_price
         unique_id: magna_exported_energy_during_negative_spot_price
         unit_of_measurement: kWh
         device_class: energy
@@ -437,6 +439,7 @@ template:
           last_export_kwh: "{{ trigger.to_state.state | float(0) }}"
 
       - name: Magna - energia exportovana automatizaciou
+        default_entity_id: sensor.magna_exported_energy_by_automation
         unique_id: magna_exported_energy_by_automation
         unit_of_measurement: kWh
         device_class: energy
@@ -456,6 +459,7 @@ template:
           last_export_kwh: "{{ trigger.to_state.state | float(0) }}"
 
       - name: Magna - uspora automatizovaneho exportu
+        default_entity_id: sensor.magna_automation_export_savings
         unique_id: magna_automation_export_savings
         unit_of_measurement: EUR
         device_class: monetary
@@ -477,6 +481,7 @@ template:
           current_buyout_price_eur_kwh: "{{ states('sensor.cena_vykupu_elektriny') | float(0) }}"
 
       - name: Magna - strateny potencial pri zapornej cene
+        default_entity_id: sensor.magna_negative_price_wasted_potential
         unique_id: magna_negative_price_wasted_potential
         unit_of_measurement: EUR
         device_class: monetary
@@ -487,7 +492,6 @@ template:
           {% set delta = current_export - previous_export %}
           {% set valid_delta = delta if delta > 0 else 0 %}
           {% set previous_total = this.state | float(0) %}
-          {# Konzervativna hodnota: vikendovy nocny tarif, pravdepodobny cas neskorsieho odberu. #}
           {% set buyout_price = states('input_number.cena_elektriny_nocny_tarif') | float(0) * 0.88 %}
           {% if states('sensor.magna_okte_spotova_cena') | float(999) < 0 %}
             {{ (previous_total + (valid_delta * buyout_price)) | round(4) }}
@@ -525,9 +529,9 @@ automation:
     trigger:
       - platform: state
         entity_id:
-          - binary_sensor.magna_export_pozadovany
+          - binary_sensor.magna_export_wanted
           - sensor.magna_okte_spotova_cena
-          - sensor.magna_odporucany_vykon_exportu
+          - sensor.magna_recommended_export_power
           - input_boolean.magna_export_guard_enabled
           - input_boolean.magna_allow_battery_early_export
     action:
@@ -582,20 +586,20 @@ automation:
                 entity_id: input_boolean.magna_export_guard_enabled
                 state: "on"
               - condition: state
-                entity_id: binary_sensor.magna_export_pozadovany
+                entity_id: binary_sensor.magna_export_wanted
                 state: "on"
             sequence:
               - if:
                   - condition: template
                     value_template: >
                       {{ (states('number.inverter_export_surplus_power') | float(0) -
-                          states('sensor.magna_odporucany_vykon_exportu') | float(0)) | abs > 50 }}
+                          states('sensor.magna_recommended_export_power') | float(0)) | abs > 50 }}
                 then:
                   - service: number.set_value
                     target:
                       entity_id: number.inverter_export_surplus_power
                     data:
-                      value: "{{ states('sensor.magna_odporucany_vykon_exportu') | float(0) }}"
+                      value: "{{ states('sensor.magna_recommended_export_power') | float(0) }}"
               - if:
                   - condition: not
                     conditions:
