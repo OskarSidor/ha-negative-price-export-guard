@@ -1,40 +1,106 @@
 # Home Assistant package: Ochrana exportu pri zapornych spotovych cenach
 #
-# Súbor je určený na vloženie do adresára packages/ v Home Assistant.
-# Slovenské názvy entít sú zobrazované názvy. default_entity_id drží stabilné entity_id,
-# aby šablóny a automatizácie fungovali aj po premenovaní názvu v UI.
+# Subor je urceny na vlozenie do adresara packages/ v Home Assistant.
+# Slovenske nazvy entit su zobrazovane nazvy. default_entity_id drzi stabilne entity_id,
+# aby sablony a automatizacie fungovali aj po premenovani nazvu v UI.
 #
-# Očakávané entity z integrácií:
+# Externe entity su definovane v sekcii input_text nizsie. Pri inom menici alebo inom nazvoslovi
+# staci zmenit hodnoty tychto helperov, pripadne upravit hodnoty initial pred prvym nasadenim.
 
-# Integrácia OKTE DAM:
-# - sensor.okte_ceny_elektriny_prices               # OKTE ceny, musí mať atribút prices
+input_text:
+  export_optimizer_entity_okte_prices:
+    name: Export Optimizer - entita OKTE cien
+    icon: mdi:currency-eur
+    max: 255
+    initial: sensor.okte_ceny_elektriny_prices
 
-# Integrácia Solcast:
-# - sensor.solcast_pv_forecast_predpoved_dnes       # Solcast predpoveď dnes, musí mať atribút detailedForecast
+  export_optimizer_entity_solcast_forecast_today:
+    name: Export Optimizer - entita Solcast predpovede dnes
+    icon: mdi:weather-sunny
+    max: 255
+    initial: sensor.solcast_pv_forecast_predpoved_dnes
 
-# Integrácia meniča (napr. Solarman):
-# - sensor.inverter_today_load_consumption          # dnešná spotreba domu v kWh, reset o polnoci
-# - sensor.inverter_total_energy_export             # celkový export do siete v kWh, stále rastúci counter
-# - sensor.inverter_today_production                # dnešná PV výroba v kWh
-# - sensor.inverter_battery                         # SOC baterie v %
-# - sensor.inverter_battery_capacity                # kapacita batérie v kWh, fallback je 20 kWh
-# - sensor.inverter_pv_power                        # aktuálny PV výkon vo W
-# - sensor.inverter_load_power                      # aktuálna spotreba domu vo W
-# - select.inverter_work_mode                       # režim meniča: Export First / Zero Export To CT
-# - number.inverter_export_surplus_power            # maximálny výkon exportu do siete vo W
+  export_optimizer_entity_today_load_consumption:
+    name: Export Optimizer - entita dennej spotreby domu
+    icon: mdi:home-lightning-bolt
+    max: 255
+    initial: sensor.inverter_today_load_consumption
 
-# Vlastne vytvorená entita cez UI - pomocník:
-# - input_number.cena_elektriny_nocny_tarif         # konzervativna hodnota energie v EUR/kWh pre výpočet straténeho potenciálu, fallback je 0.052 EUR/kWh
+  export_optimizer_entity_total_energy_export:
+    name: Export Optimizer - entita celkoveho exportu
+    icon: mdi:transmission-tower-export
+    max: 255
+    initial: sensor.inverter_total_energy_export
+
+  export_optimizer_entity_today_production:
+    name: Export Optimizer - entita dennej PV vyroby
+    icon: mdi:solar-power-variant
+    max: 255
+    initial: sensor.inverter_today_production
+
+  export_optimizer_entity_battery_soc:
+    name: Export Optimizer - entita SOC baterie
+    icon: mdi:battery
+    max: 255
+    initial: sensor.inverter_battery
+
+  export_optimizer_entity_battery_capacity:
+    name: Export Optimizer - entita kapacity baterie
+    icon: mdi:battery-high
+    max: 255
+    initial: sensor.inverter_battery_capacity
+
+  export_optimizer_entity_pv_power:
+    name: Export Optimizer - entita aktualneho PV vykonu
+    icon: mdi:solar-power
+    max: 255
+    initial: sensor.inverter_pv_power
+
+  export_optimizer_entity_load_power:
+    name: Export Optimizer - entita aktualnej spotreby domu
+    icon: mdi:home-lightning-bolt-outline
+    max: 255
+    initial: sensor.inverter_load_power
+
+  export_optimizer_entity_inverter_work_mode:
+    name: Export Optimizer - entita rezimu menica
+    icon: mdi:select
+    max: 255
+    initial: select.inverter_work_mode
+
+  export_optimizer_entity_export_surplus_power:
+    name: Export Optimizer - entita limitu exportu
+    icon: mdi:transmission-tower
+    max: 255
+    initial: number.inverter_export_surplus_power
+
+  export_optimizer_entity_energy_value_helper:
+    name: Export Optimizer - entita hodnoty energie
+    icon: mdi:cash
+    max: 255
+    initial: input_number.cena_elektriny_nocny_tarif
+
+  export_optimizer_mode_export_first:
+    name: Export Optimizer - nazov rezimu Export First
+    icon: mdi:export
+    max: 255
+    initial: Export First
+
+  export_optimizer_mode_zero_export:
+    name: Export Optimizer - nazov rezimu Zero Export To CT
+    icon: mdi:transmission-tower-off
+    max: 255
+    initial: Zero Export To CT
 
 input_datetime:
   export_optimizer_solar_window_start_recorded:
-    name: Export Optimizér - čas záznamu rannej spotreby
+    name: Export Optimizer - cas zaznamu rannej spotreby
     has_date: true
     has_time: true
 
 input_number:
   export_optimizer_solar_window_start_load_kwh:
-    name: Export Optimizér - ranná spotreba domu
+    name: Export Optimizer - ranna spotreba domu
     min: 0
     max: 100
     step: 0.01
@@ -42,7 +108,7 @@ input_number:
     mode: box
 
   export_optimizer_min_reserve_soc:
-    name: Export Optimizér - minimálna rezerva batérie
+    name: Export Optimizer - minimalna rezerva baterie
     min: 10
     max: 90
     step: 1
@@ -51,7 +117,7 @@ input_number:
     initial: 40
 
   export_optimizer_consumption_margin_kwh:
-    name: Export Optimizér - rezerva odhadu spotreby
+    name: Export Optimizer - rezerva odhadu spotreby
     min: 0
     max: 10
     step: 0.5
@@ -60,7 +126,7 @@ input_number:
     initial: 2
 
   export_optimizer_export_surplus_threshold_kwh:
-    name: Export Optimizér - minimalny ocakavany prebytok
+    name: Export Optimizer - minimalny ocakavany prebytok
     min: 0
     max: 10
     step: 0.25
@@ -69,7 +135,7 @@ input_number:
     initial: 1
 
   export_optimizer_price_floor:
-    name: Export Optimizér - minimalna spotova cena pre export
+    name: Export Optimizer - minimalna spotova cena pre export
     min: -50
     max: 50
     step: 0.1
@@ -78,7 +144,7 @@ input_number:
     initial: 0
 
   export_optimizer_min_export_power_w:
-    name: Export Optimizér - minimalny riadeny vykon exportu
+    name: Export Optimizer - minimalny riadeny vykon exportu
     min: 0
     max: 5000
     step: 100
@@ -87,7 +153,7 @@ input_number:
     initial: 500
 
   export_optimizer_max_export_power_w:
-    name: Export Optimizér - maximalny riadeny vykon exportu
+    name: Export Optimizer - maximalny riadeny vykon exportu
     min: 100
     max: 10000
     step: 100
@@ -97,17 +163,17 @@ input_number:
 
 input_boolean:
   export_optimizer_export_guard_enabled:
-    name: Export Optimizér - ochrana exportu zapnuta
+    name: Export Optimizer - ochrana exportu zapnuta
     icon: mdi:shield-sun
     initial: true
 
   export_optimizer_export_guard_active:
-    name: Export Optimizér - riadeny export aktivny
+    name: Export Optimizer - riadeny export aktivny
     icon: mdi:transmission-tower-export
     initial: false
 
   export_optimizer_allow_battery_early_export:
-    name: Export Optimizér - povolit skory export z baterie
+    name: Export Optimizer - povolit skory export z baterie
     icon: mdi:battery-arrow-down
     initial: true
 
@@ -116,25 +182,27 @@ template:
       - platform: time
         at: "18:00:00"
     sensor:
-      - name: Export Optimizér - priemer spotreby v solarnom okne 7d
+      - name: Export Optimizer - priemer spotreby v solarnom okne 7d
         default_entity_id: sensor.export_optimizer_solar_window_load_7d_average
         unique_id: export_optimizer_solar_window_load_7d_average
         unit_of_measurement: kWh
         state: >
+          {% set load_entity = states('input_text.export_optimizer_entity_today_load_consumption') %}
           {% set recorded = as_datetime(states('input_datetime.export_optimizer_solar_window_start_recorded')) %}
           {% set valid = recorded is not none and recorded.date() == now().date() %}
           {% set start = states('input_number.export_optimizer_solar_window_start_load_kwh') | float(0) %}
-          {% set current = states('sensor.inverter_today_load_consumption') | float(0) %}
+          {% set current = states(load_entity) | float(0) %}
           {% set sample = [current - start, 0] | max if valid else 0 %}
           {% set old = (this.attributes.samples_csv | default('', true)).split(',') | reject('eq','') | map('float') | list %}
           {% set new = ([sample] + old)[:7] if sample > 0 else old %}
           {{ ((new | sum) / (new | count)) | round(2) if new | count > 0 else 6 }}
         attributes:
           samples_csv: >
+            {% set load_entity = states('input_text.export_optimizer_entity_today_load_consumption') %}
             {% set recorded = as_datetime(states('input_datetime.export_optimizer_solar_window_start_recorded')) %}
             {% set valid = recorded is not none and recorded.date() == now().date() %}
             {% set start = states('input_number.export_optimizer_solar_window_start_load_kwh') | float(0) %}
-            {% set current = states('sensor.inverter_today_load_consumption') | float(0) %}
+            {% set current = states(load_entity) | float(0) %}
             {% set sample = [current - start, 0] | max if valid else 0 %}
             {% set old = (this.attributes.samples_csv | default('', true)).split(',') | reject('eq','') | map('float') | list %}
             {% set new = ([sample] + old)[:7] if sample > 0 else old %}
@@ -146,14 +214,17 @@ template:
       - platform: homeassistant
         event: start
       - platform: state
-        entity_id: sensor.okte_ceny_elektriny_prices
+        entity_id:
+          - input_text.export_optimizer_entity_okte_prices
+          - input_text.export_optimizer_entity_energy_value_helper
     sensor:
-      - name: Export Optimizér OKTE spotova cena
+      - name: Export Optimizer OKTE spotova cena
         default_entity_id: sensor.export_optimizer_okte_spotova_cena
         unique_id: export_optimizer_okte_spot_price
         unit_of_measurement: EUR/MWh
         state: >
-          {% set prices = state_attr('sensor.okte_ceny_elektriny_prices', 'prices') or [] %}
+          {% set okte_entity = states('input_text.export_optimizer_entity_okte_prices') %}
+          {% set prices = state_attr(okte_entity, 'prices') or [] %}
           {% set now_local = now() %}
           {% set ns = namespace(price=none) %}
           {% for p in prices %}
@@ -162,31 +233,44 @@ template:
               {% set ns.price = p.price | float %}
             {% endif %}
           {% endfor %}
-          {{ ns.price if ns.price is not none else states('sensor.okte_ceny_elektriny_prices') | float(999) }}
+          {{ ns.price if ns.price is not none else states(okte_entity) | float(999) }}
         attributes:
           source: okte_prices_attribute
-      - name: Cena výkupu elektriny
-        # Cena výkupu je 0 keď je spotová cena záporná, inak je to konzervatívna hodnota založená na nočnom tarife
-        # počas víkendu (teda s 12% zľavou), aby sme vedeli odhadnúť stratený potenciál pri záporných cenách.
+          source_entity: "{{ states('input_text.export_optimizer_entity_okte_prices') }}"
+
+      - name: Cena vykupu elektriny
+        # Cena vykupu je 0 ked je spotova cena zaporna, inak je to konzervativna hodnota zalozena na nocnom tarife
+        # pocas vikendu (teda s 12% zlavou), aby sme vedeli odhadnut strateny potencial pri zapornych cenach.
         default_entity_id: sensor.cena_vykupu_elektriny
         unique_id: export_optimizer_solar_sell_price
         unit_of_measurement: EUR/kWh
         state: >
-          {% if states('sensor.export_optimizer_okte_spotova_cena') | float(0) >= 0 %}  
-            {% set price = states('input_number.cena_elektriny_nocny_tarif') | float(0.052) * 0.88 %}
+          {% set energy_value_entity = states('input_text.export_optimizer_entity_energy_value_helper') %}
+          {% if states('sensor.export_optimizer_okte_spotova_cena') | float(0) >= 0 %}
+            {% set price = states(energy_value_entity) | float(0.052) * 0.88 %}
           {% else %}
             {% set price = 0 %}
           {% endif %}
           {{ price }}
+        attributes:
+          source_entity: "{{ states('input_text.export_optimizer_entity_energy_value_helper') }}"
+
   - trigger:
       - platform: time_pattern
         minutes: "/10"
+      - platform: homeassistant
+        event: start
       - platform: state
         entity_id:
-          - sensor.inverter_today_production
-          - sensor.inverter_today_load_consumption
-          - sensor.solcast_pv_forecast_predpoved_dnes
           - sensor.export_optimizer_okte_spotova_cena
+          - input_text.export_optimizer_entity_okte_prices
+          - input_text.export_optimizer_entity_solcast_forecast_today
+          - input_text.export_optimizer_entity_today_load_consumption
+          - input_text.export_optimizer_entity_today_production
+          - input_text.export_optimizer_entity_battery_soc
+          - input_text.export_optimizer_entity_battery_capacity
+          - input_text.export_optimizer_entity_pv_power
+          - input_text.export_optimizer_entity_load_power
           - input_boolean.export_optimizer_allow_battery_early_export
           - input_number.export_optimizer_price_floor
           - input_number.export_optimizer_min_export_power_w
@@ -195,31 +279,34 @@ template:
           - input_number.export_optimizer_export_surplus_threshold_kwh
           - input_number.export_optimizer_min_reserve_soc
     sensor:
-      - name: Export Optimizér - zostavajuca PV predpoved dnes
+      - name: Export Optimizer - zostavajuca PV predpoved dnes
         default_entity_id: sensor.export_optimizer_remaining_pv_forecast_today
         unique_id: export_optimizer_remaining_pv_forecast_today
         unit_of_measurement: kWh
         state: >
-          {% set forecast = states('sensor.solcast_pv_forecast_predpoved_dnes') | float(0) %}
-          {% set actual = states('sensor.inverter_today_production') | float(0) %}
+          {% set forecast_entity = states('input_text.export_optimizer_entity_solcast_forecast_today') %}
+          {% set production_entity = states('input_text.export_optimizer_entity_today_production') %}
+          {% set forecast = states(forecast_entity) | float(0) %}
+          {% set actual = states(production_entity) | float(0) %}
           {{ [forecast - actual, 0] | max | round(2) }}
 
-      - name: Export Optimizér - spotreba v solarnom okne dnes
+      - name: Export Optimizer - spotreba v solarnom okne dnes
         default_entity_id: sensor.export_optimizer_solar_window_load_today
         unique_id: export_optimizer_solar_window_load_today
         unit_of_measurement: kWh
         state: >
+          {% set load_entity = states('input_text.export_optimizer_entity_today_load_consumption') %}
           {% set recorded = as_datetime(states('input_datetime.export_optimizer_solar_window_start_recorded')) %}
           {% set valid = recorded is not none and recorded.date() == now().date() %}
           {% if now() < today_at('07:00') or not valid %}
             0
           {% else %}
             {% set start = states('input_number.export_optimizer_solar_window_start_load_kwh') | float(0) %}
-            {% set current = states('sensor.inverter_today_load_consumption') | float(0) %}
+            {% set current = states(load_entity) | float(0) %}
             {{ [current - start, 0] | max | round(2) }}
           {% endif %}
 
-      - name: Export Optimizér - odhad zostavajucej spotreby v solarnom okne
+      - name: Export Optimizer - odhad zostavajucej spotreby v solarnom okne
         default_entity_id: sensor.export_optimizer_remaining_solar_window_load_estimate
         unique_id: export_optimizer_remaining_solar_window_load_estimate
         unit_of_measurement: kWh
@@ -233,12 +320,13 @@ template:
             {{ [avg + margin - used, 0] | max | round(2) }}
           {% endif %}
 
-      - name: Export Optimizér - minuty zapornej ceny do 18:00
+      - name: Export Optimizer - minuty zapornej ceny do 18:00
         default_entity_id: sensor.export_optimizer_negative_price_minutes_until_18
         unique_id: export_optimizer_negative_price_minutes_until_18
         unit_of_measurement: min
         state: >
-          {% set prices = state_attr('sensor.okte_ceny_elektriny_prices','prices') or [] %}
+          {% set okte_entity = states('input_text.export_optimizer_entity_okte_prices') %}
+          {% set prices = state_attr(okte_entity, 'prices') or [] %}
           {% set now_ts = as_timestamp(now()) %}
           {% set horizon = as_timestamp(today_at('18:00')) %}
           {% set floor = states('input_number.export_optimizer_price_floor') | float(0) %}
@@ -251,32 +339,35 @@ template:
           {% endfor %}
           {{ ns.minutes }}
 
-      - name: Export Optimizér - cielove SOC baterie
+      - name: Export Optimizer - cielove SOC baterie
         default_entity_id: sensor.export_optimizer_battery_target_soc
         unique_id: export_optimizer_battery_target_soc
         unit_of_measurement: "%"
         state: >
-          {% set cap = states('sensor.inverter_battery_capacity') | float(20) %}
+          {% set cap_entity = states('input_text.export_optimizer_entity_battery_capacity') %}
+          {% set cap = states(cap_entity) | float(20) %}
           {% set reserve = states('input_number.export_optimizer_min_reserve_soc') | float(40) %}
           {% set remaining_load = states('sensor.export_optimizer_remaining_solar_window_load_estimate') | float(0) %}
           {% set remaining_pv = states('sensor.export_optimizer_remaining_pv_forecast_today') | float(0) %}
           {% set uncovered_load = [remaining_load - remaining_pv, 0] | max %}
           {{ [reserve + (uncovered_load / cap * 100), 95] | min | round(0) }}
 
-      - name: Export Optimizér - ocakavany prebytok dnes
+      - name: Export Optimizer - ocakavany prebytok dnes
         default_entity_id: sensor.export_optimizer_expected_surplus_today
         unique_id: export_optimizer_expected_surplus_today
         unit_of_measurement: kWh
         state: >
-          {% set cap = states('sensor.inverter_battery_capacity') | float(20) %}
-          {% set soc = states('sensor.inverter_battery') | float(0) %}
+          {% set cap_entity = states('input_text.export_optimizer_entity_battery_capacity') %}
+          {% set soc_entity = states('input_text.export_optimizer_entity_battery_soc') %}
+          {% set cap = states(cap_entity) | float(20) %}
+          {% set soc = states(soc_entity) | float(0) %}
           {% set reserve = states('input_number.export_optimizer_min_reserve_soc') | float(40) %}
           {% set battery_above_reserve = [((soc - reserve) / 100 * cap), 0] | max %}
           {% set remaining_pv = states('sensor.export_optimizer_remaining_pv_forecast_today') | float(0) %}
           {% set remaining_load = states('sensor.export_optimizer_remaining_solar_window_load_estimate') | float(0) %}
           {{ (battery_above_reserve + remaining_pv - remaining_load) | round(2) }}
 
-      - name: Export Optimizér - odporucany vykon exportu
+      - name: Export Optimizer - odporucany vykon exportu
         default_entity_id: sensor.export_optimizer_recommended_export_power
         unique_id: export_optimizer_recommended_export_power
         unit_of_measurement: W
@@ -286,20 +377,26 @@ template:
           {% if price < floor or now() < today_at('07:00') or now() >= today_at('18:00') %}
             0
           {% else %}
-            {% set prices = state_attr('sensor.okte_ceny_elektriny_prices','prices') or [] %}
-            {% set forecast = state_attr('sensor.solcast_pv_forecast_predpoved_dnes','detailedForecast') or [] %}
+            {% set okte_entity = states('input_text.export_optimizer_entity_okte_prices') %}
+            {% set forecast_entity = states('input_text.export_optimizer_entity_solcast_forecast_today') %}
+            {% set cap_entity = states('input_text.export_optimizer_entity_battery_capacity') %}
+            {% set soc_entity = states('input_text.export_optimizer_entity_battery_soc') %}
+            {% set pv_power_entity = states('input_text.export_optimizer_entity_pv_power') %}
+            {% set load_power_entity = states('input_text.export_optimizer_entity_load_power') %}
+            {% set prices = state_attr(okte_entity, 'prices') or [] %}
+            {% set forecast = state_attr(forecast_entity, 'detailedForecast') or [] %}
             {% set now_local = now() %}
             {% set window_end = today_at('18:00') %}
-            {% set cap = states('sensor.inverter_battery_capacity') | float(20) %}
-            {% set soc = states('sensor.inverter_battery') | float(0) %}
+            {% set cap = states(cap_entity) | float(20) %}
+            {% set soc = states(soc_entity) | float(0) %}
             {% set battery_now = cap * soc / 100 %}
             {% set threshold = states('input_number.export_optimizer_export_surplus_threshold_kwh') | float(1) %}
             {% set remaining_load = states('sensor.export_optimizer_remaining_solar_window_load_estimate') | float(0) %}
             {% set min_w = states('input_number.export_optimizer_min_export_power_w') | float(500) %}
             {% set max_w = states('input_number.export_optimizer_max_export_power_w') | float(3000) %}
             {% set battery_export_allowed = is_state('input_boolean.export_optimizer_allow_battery_early_export', 'on') %}
-            {% set pv_power = states('sensor.inverter_pv_power') | float(0) %}
-            {% set load_power = states('sensor.inverter_load_power') | float(0) %}
+            {% set pv_power = states(pv_power_entity) | float(0) %}
+            {% set load_power = states(load_power_entity) | float(0) %}
             {% set live_surplus_w = [pv_power - load_power - 200, 0] | max %}
 
             {% set neg = namespace(start=none, end=none, done=false) %}
@@ -392,6 +489,8 @@ template:
   - trigger:
       - platform: time_pattern
         minutes: "/10"
+      - platform: homeassistant
+        event: start
       - platform: state
         entity_id:
           - sensor.export_optimizer_okte_spotova_cena
@@ -399,18 +498,20 @@ template:
           - sensor.export_optimizer_expected_surplus_today
           - sensor.export_optimizer_battery_target_soc
           - sensor.export_optimizer_negative_price_minutes_until_18
+          - input_text.export_optimizer_entity_battery_soc
           - input_boolean.export_optimizer_export_guard_enabled
           - input_boolean.export_optimizer_allow_battery_early_export
     binary_sensor:
-      - name: Export Optimizér - export pozadovany
+      - name: Export Optimizer - export pozadovany
         default_entity_id: binary_sensor.export_optimizer_export_wanted
         unique_id: export_optimizer_export_wanted
         state: >
+          {% set soc_entity = states('input_text.export_optimizer_entity_battery_soc') %}
           {% set enabled = is_state('input_boolean.export_optimizer_export_guard_enabled','on') %}
           {% set battery_export_allowed = is_state('input_boolean.export_optimizer_allow_battery_early_export', 'on') %}
           {% set price = states('sensor.export_optimizer_okte_spotova_cena') | float(999) %}
           {% set floor = states('input_number.export_optimizer_price_floor') | float(0) %}
-          {% set soc = states('sensor.inverter_battery') | float(0) %}
+          {% set soc = states(soc_entity) | float(0) %}
           {% set target = states('sensor.export_optimizer_battery_target_soc') | float(95) %}
           {% set surplus = states('sensor.export_optimizer_expected_surplus_today') | float(0) %}
           {% set threshold = states('input_number.export_optimizer_export_surplus_threshold_kwh') | float(1) %}
@@ -427,18 +528,27 @@ template:
              and export_w > 0 }}
 
   - trigger:
+      - platform: time_pattern
+        minutes: "/10"
+      - platform: homeassistant
+        event: start
       - platform: state
-        entity_id: sensor.inverter_total_energy_export
+        entity_id:
+          - input_text.export_optimizer_entity_total_energy_export
+          - input_text.export_optimizer_entity_energy_value_helper
+          - sensor.export_optimizer_okte_spotova_cena
+          - input_boolean.export_optimizer_export_guard_active
     sensor:
-      - name: Export Optimizér - energia exportovana pocas zapornej ceny
+      - name: Export Optimizer - energia exportovana pocas zapornej ceny
         default_entity_id: sensor.export_optimizer_exported_energy_during_negative_spot_price
         unique_id: export_optimizer_exported_energy_during_negative_spot_price
         unit_of_measurement: kWh
         device_class: energy
         state_class: total_increasing
         state: >
-          {% set previous_export = this.attributes.last_export_kwh | default(trigger.from_state.state | float(0), true) | float(0) %}
-          {% set current_export = trigger.to_state.state | float(0) %}
+          {% set export_entity = states('input_text.export_optimizer_entity_total_energy_export') %}
+          {% set current_export = states(export_entity) | float(0) %}
+          {% set previous_export = this.attributes.last_export_kwh | default(current_export, true) | float(current_export) %}
           {% set delta = current_export - previous_export %}
           {% set valid_delta = delta if delta > 0 else 0 %}
           {% set previous_total = this.state | float(0) %}
@@ -448,17 +558,19 @@ template:
             {{ previous_total | round(4) }}
           {% endif %}
         attributes:
-          last_export_kwh: "{{ trigger.to_state.state | float(0) }}"
+          last_export_kwh: "{{ states(states('input_text.export_optimizer_entity_total_energy_export')) | float(0) }}"
+          source_entity: "{{ states('input_text.export_optimizer_entity_total_energy_export') }}"
 
-      - name: Export Optimizér - energia exportovana automatizaciou
+      - name: Export Optimizer - energia exportovana automatizaciou
         default_entity_id: sensor.export_optimizer_exported_energy_by_automation
         unique_id: export_optimizer_exported_energy_by_automation
         unit_of_measurement: kWh
         device_class: energy
         state_class: total_increasing
         state: >
-          {% set previous_export = this.attributes.last_export_kwh | default(trigger.from_state.state | float(0), true) | float(0) %}
-          {% set current_export = trigger.to_state.state | float(0) %}
+          {% set export_entity = states('input_text.export_optimizer_entity_total_energy_export') %}
+          {% set current_export = states(export_entity) | float(0) %}
+          {% set previous_export = this.attributes.last_export_kwh | default(current_export, true) | float(current_export) %}
           {% set delta = current_export - previous_export %}
           {% set valid_delta = delta if delta > 0 else 0 %}
           {% set previous_total = this.state | float(0) %}
@@ -468,17 +580,19 @@ template:
             {{ previous_total | round(4) }}
           {% endif %}
         attributes:
-          last_export_kwh: "{{ trigger.to_state.state | float(0) }}"
+          last_export_kwh: "{{ states(states('input_text.export_optimizer_entity_total_energy_export')) | float(0) }}"
+          source_entity: "{{ states('input_text.export_optimizer_entity_total_energy_export') }}"
 
-      - name: Export Optimizér - uspora automatizovaneho exportu
+      - name: Export Optimizer - uspora automatizovaneho exportu
         default_entity_id: sensor.export_optimizer_automation_export_savings
         unique_id: export_optimizer_automation_export_savings
         unit_of_measurement: EUR
         device_class: monetary
         state_class: total
         state: >
-          {% set previous_export = this.attributes.last_export_kwh | default(trigger.from_state.state | float(0), true) | float(0) %}
-          {% set current_export = trigger.to_state.state | float(0) %}
+          {% set export_entity = states('input_text.export_optimizer_entity_total_energy_export') %}
+          {% set current_export = states(export_entity) | float(0) %}
+          {% set previous_export = this.attributes.last_export_kwh | default(current_export, true) | float(current_export) %}
           {% set delta = current_export - previous_export %}
           {% set valid_delta = delta if delta > 0 else 0 %}
           {% set previous_total = this.state | float(0) %}
@@ -489,33 +603,37 @@ template:
             {{ previous_total | round(4) }}
           {% endif %}
         attributes:
-          last_export_kwh: "{{ trigger.to_state.state | float(0) }}"
+          last_export_kwh: "{{ states(states('input_text.export_optimizer_entity_total_energy_export')) | float(0) }}"
           current_buyout_price_eur_kwh: "{{ states('sensor.cena_vykupu_elektriny') | float(0) }}"
+          source_entity: "{{ states('input_text.export_optimizer_entity_total_energy_export') }}"
 
-      - name: Export Optimizér - strateny potencial pri zapornej cene
+      - name: Export Optimizer - strateny potencial pri zapornej cene
         default_entity_id: sensor.export_optimizer_negative_price_wasted_potential
         unique_id: export_optimizer_negative_price_wasted_potential
         unit_of_measurement: EUR
         device_class: monetary
         state_class: total
         state: >
-          {% set previous_export = this.attributes.last_export_kwh | default(trigger.from_state.state | float(0), true) | float(0) %}
-          {% set current_export = trigger.to_state.state | float(0) %}
+          {% set export_entity = states('input_text.export_optimizer_entity_total_energy_export') %}
+          {% set energy_value_entity = states('input_text.export_optimizer_entity_energy_value_helper') %}
+          {% set current_export = states(export_entity) | float(0) %}
+          {% set previous_export = this.attributes.last_export_kwh | default(current_export, true) | float(current_export) %}
           {% set delta = current_export - previous_export %}
           {% set valid_delta = delta if delta > 0 else 0 %}
           {% set previous_total = this.state | float(0) %}
-          {% set buyout_price = states('input_number.cena_elektriny_nocny_tarif') | float(0.052) * 0.88 %}
+          {% set buyout_price = states(energy_value_entity) | float(0.052) * 0.88 %}
           {% if states('sensor.export_optimizer_okte_spotova_cena') | float(999) < 0 %}
             {{ (previous_total + (valid_delta * buyout_price)) | round(4) }}
           {% else %}
             {{ previous_total | round(4) }}
           {% endif %}
         attributes:
-          last_export_kwh: "{{ trigger.to_state.state | float(0) }}"
-          hypothetical_buyout_price_eur_kwh: "{{ states('input_number.cena_elektriny_nocny_tarif') | float(0.052) * 0.88 }}"
+          last_export_kwh: "{{ states(states('input_text.export_optimizer_entity_total_energy_export')) | float(0) }}"
+          hypothetical_buyout_price_eur_kwh: "{{ states(states('input_text.export_optimizer_entity_energy_value_helper')) | float(0.052) * 0.88 }}"
+          source_entity: "{{ states('input_text.export_optimizer_entity_total_energy_export') }}"
 
 automation:
-  - alias: Export Optimizér Pozicovna - zaznamenat zaciatok solarneho okna
+  - alias: Export Optimizer Pozicovna - zaznamenat zaciatok solarneho okna
     id: export_optimizer_pozicovna_record_solar_window_start
     description: Zapise spotrebu domu o 07:00, aby sa dala vypocitat spotreba iba pocas solarneho okna.
     mode: single
@@ -527,18 +645,20 @@ automation:
         target:
           entity_id: input_number.export_optimizer_solar_window_start_load_kwh
         data:
-          value: "{{ states('sensor.inverter_today_load_consumption') | float(0) }}"
+          value: "{{ states(states('input_text.export_optimizer_entity_today_load_consumption')) | float(0) }}"
       - service: input_datetime.set_datetime
         target:
           entity_id: input_datetime.export_optimizer_solar_window_start_recorded
         data:
           datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
 
-  - alias: Export Optimizér Pozicovna - export iba ked je bezpecny
+  - alias: Export Optimizer Pozicovna - export iba ked je bezpecny
     id: export_optimizer_pozicovna_export_only_when_safe
     description: Prepina menic do Export First iba vtedy, ked treba vytvorit miesto v baterii pred zapornou spotovou cenou.
     mode: single
     trigger:
+      - platform: time_pattern
+        minutes: "/5"
       - platform: state
         entity_id:
           - binary_sensor.export_optimizer_export_wanted
@@ -546,13 +666,22 @@ automation:
           - sensor.export_optimizer_recommended_export_power
           - input_boolean.export_optimizer_export_guard_enabled
           - input_boolean.export_optimizer_allow_battery_early_export
-          - select.inverter_work_mode
-      - platform: numeric_state
-        entity_id: sensor.inverter_battery
-        above: 99.5
+          - input_text.export_optimizer_entity_inverter_work_mode
+          - input_text.export_optimizer_entity_export_surplus_power
+          - input_text.export_optimizer_mode_export_first
+          - input_text.export_optimizer_mode_zero_export
       - platform: homeassistant
         event: start
     action:
+      - variables:
+          work_mode_entity: "{{ states('input_text.export_optimizer_entity_inverter_work_mode') }}"
+          export_power_entity: "{{ states('input_text.export_optimizer_entity_export_surplus_power') }}"
+          soc_entity: "{{ states('input_text.export_optimizer_entity_battery_soc') }}"
+          pv_power_entity: "{{ states('input_text.export_optimizer_entity_pv_power') }}"
+          load_power_entity: "{{ states('input_text.export_optimizer_entity_load_power') }}"
+          export_first_mode: "{{ states('input_text.export_optimizer_mode_export_first') }}"
+          zero_export_mode: "{{ states('input_text.export_optimizer_mode_zero_export') }}"
+          price_floor: "{{ states('input_number.export_optimizer_price_floor') | float(0) }}"
       - choose:
           - conditions:
               - condition: state
@@ -563,38 +692,29 @@ automation:
                 state: "on"
             sequence:
               - if:
-                  - condition: not
-                    conditions:
-                      - condition: state
-                        entity_id: select.inverter_work_mode
-                        state: "Zero Export To CT"
+                  - condition: template
+                    value_template: "{{ states(work_mode_entity) != zero_export_mode }}"
                 then:
                   - service: select.select_option
-                    target:
-                      entity_id: select.inverter_work_mode
                     data:
-                      option: "Zero Export To CT"
+                      entity_id: "{{ work_mode_entity }}"
+                      option: "{{ zero_export_mode }}"
               - service: input_boolean.turn_off
                 target:
                   entity_id: input_boolean.export_optimizer_export_guard_active
 
           - conditions:
-              - condition: numeric_state
-                entity_id: sensor.export_optimizer_okte_spotova_cena
-                below: 0
+              - condition: template
+                value_template: "{{ states('sensor.export_optimizer_okte_spotova_cena') | float(999) < price_floor | float(0) }}"
             sequence:
               - if:
-                  - condition: not
-                    conditions:
-                      - condition: state
-                        entity_id: select.inverter_work_mode
-                        state: "Zero Export To CT"
+                  - condition: template
+                    value_template: "{{ states(work_mode_entity) != zero_export_mode }}"
                 then:
                   - service: select.select_option
-                    target:
-                      entity_id: select.inverter_work_mode
                     data:
-                      option: "Zero Export To CT"
+                      entity_id: "{{ work_mode_entity }}"
+                      option: "{{ zero_export_mode }}"
               - service: input_boolean.turn_off
                 target:
                   entity_id: input_boolean.export_optimizer_export_guard_active
@@ -610,11 +730,10 @@ automation:
               - variables:
                   recommended_w: "{{ states('sensor.export_optimizer_recommended_export_power') | float(0) }}"
                   live_surplus_w: >
-                    {{ [states('sensor.inverter_pv_power') | float(0) -
-                        states('sensor.inverter_load_power') | float(0) - 200, 0] | max }}
+                    {{ [states(pv_power_entity) | float(0) - states(load_power_entity) | float(0) - 200, 0] | max }}
                   max_w: "{{ states('input_number.export_optimizer_max_export_power_w') | float(3000) }}"
                   export_power_target: >
-                    {% if states('sensor.inverter_battery') | float(0) >= 99.5 %}
+                    {% if states(soc_entity) | float(0) >= 99.5 %}
                       {{ [[recommended_w | float(0), live_surplus_w | float(0)] | max, max_w | float(3000)] | min }}
                     {% else %}
                       {{ recommended_w | float(0) }}
@@ -622,26 +741,21 @@ automation:
               - if:
                   - condition: template
                     value_template: >
-                      {{ (states('number.inverter_export_surplus_power') | float(0) -
+                      {{ (states(export_power_entity) | float(0) -
                           export_power_target | float(0)) | abs > 50 }}
                 then:
                   - service: number.set_value
-                    target:
-                      entity_id: number.inverter_export_surplus_power
                     data:
+                      entity_id: "{{ export_power_entity }}"
                       value: "{{ export_power_target | float(0) }}"
               - if:
-                  - condition: not
-                    conditions:
-                      - condition: state
-                        entity_id: select.inverter_work_mode
-                        state: "Export First"
+                  - condition: template
+                    value_template: "{{ states(work_mode_entity) != export_first_mode }}"
                 then:
                   - service: select.select_option
-                    target:
-                      entity_id: select.inverter_work_mode
                     data:
-                      option: "Export First"
+                      entity_id: "{{ work_mode_entity }}"
+                      option: "{{ export_first_mode }}"
               - service: input_boolean.turn_on
                 target:
                   entity_id: input_boolean.export_optimizer_export_guard_active
@@ -650,26 +764,22 @@ automation:
               - condition: state
                 entity_id: input_boolean.export_optimizer_export_guard_enabled
                 state: "on"
-              - condition: state
-                entity_id: select.inverter_work_mode
-                state: "Zero Export To CT"
-              - condition: numeric_state
-                entity_id: sensor.inverter_battery
-                above: 99.5
-              - condition: numeric_state
-                entity_id: sensor.export_optimizer_okte_spotova_cena
-                above: -0.001
+              - condition: template
+                value_template: "{{ states(work_mode_entity) == zero_export_mode }}"
+              - condition: template
+                value_template: "{{ states(soc_entity) | float(0) >= 99.5 }}"
+              - condition: template
+                value_template: "{{ states('sensor.export_optimizer_okte_spotova_cena') | float(999) >= price_floor | float(0) }}"
             sequence:
               - if:
                   - condition: template
                     value_template: >
-                      {{ (states('number.inverter_export_surplus_power') | float(0) -
+                      {{ (states(export_power_entity) | float(0) -
                           states('input_number.export_optimizer_max_export_power_w') | float(3000)) | abs > 50 }}
                 then:
                   - service: number.set_value
-                    target:
-                      entity_id: number.inverter_export_surplus_power
                     data:
+                      entity_id: "{{ export_power_entity }}"
                       value: "{{ states('input_number.export_optimizer_max_export_power_w') | float(3000) }}"
 
           - conditions:
@@ -678,17 +788,13 @@ automation:
                 state: "on"
             sequence:
               - if:
-                  - condition: not
-                    conditions:
-                      - condition: state
-                        entity_id: select.inverter_work_mode
-                        state: "Zero Export To CT"
+                  - condition: template
+                    value_template: "{{ states(work_mode_entity) != zero_export_mode }}"
                 then:
                   - service: select.select_option
-                    target:
-                      entity_id: select.inverter_work_mode
                     data:
-                      option: "Zero Export To CT"
+                      entity_id: "{{ work_mode_entity }}"
+                      option: "{{ zero_export_mode }}"
               - service: input_boolean.turn_off
                 target:
                   entity_id: input_boolean.export_optimizer_export_guard_active
