@@ -95,6 +95,15 @@ input_number:
     mode: slider
     initial: 3000
 
+  export_optimizer_typical_idle_power_w:
+    name: Export Optimizér - typická minimálna spotreba domu vrátane meniča
+    default_entity_id: input_number.export_optimizer_typical_idle_power_w
+    unique_id: export_optimizer_typical_idle_power_w
+    min: 0
+    max: 3000
+    step: 10
+    unit_of_measurement: W
+
 input_boolean:
   export_optimizer_export_guard_enabled:
     name: Export Optimizér - ochrana exportu zapnuta
@@ -230,7 +239,14 @@ template:
           {% if now() >= today_at('18:00') %}
             0
           {% else %}
-            {{ [avg + margin - used, 0] | max | round(2) }}
+            {% set end_time = today_at('17:00') | as_timestamp %}
+            {% set current_time = now() | as_timestamp %}
+            {% set hours_left = (end_time - current_time) / 3600 %}
+            {# Ensure hours_left isn't negative if it's past 17:00 #}
+            {% set hours_left = [hours_left, 0] | max %}
+            {% set idle_power_w = states('input_number.export_optimizer_typical_idle_power_w') | float(0) %}
+            {% set minimum_baseload_kwh = (idle_power_w * hours_left) / 1000 %}
+            {{ [avg + margin - used, minimum_baseload_kwh] | max | round(2) }}
           {% endif %}
 
       - name: Export Optimizér - minuty zapornej ceny do 18:00
