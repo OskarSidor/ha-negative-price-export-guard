@@ -534,6 +534,9 @@ automation:
           - sensor.magna_recommended_export_power
           - input_boolean.magna_export_guard_enabled
           - input_boolean.magna_allow_battery_early_export
+      - platform: numeric_state
+        entity_id: sensor.inverter_battery
+        above: 99.5
     action:
       - choose:
           - conditions:
@@ -589,17 +592,24 @@ automation:
                 entity_id: binary_sensor.magna_export_wanted
                 state: "on"
             sequence:
+              - variables:
+                  export_power_target: >
+                    {% if states('sensor.inverter_battery') | float(0) >= 99.5 %}
+                      {{ states('input_number.magna_max_export_power_w') | float(3000) }}
+                    {% else %}
+                      {{ states('sensor.magna_recommended_export_power') | float(0) }}
+                    {% endif %}
               - if:
                   - condition: template
                     value_template: >
                       {{ (states('number.inverter_export_surplus_power') | float(0) -
-                          states('sensor.magna_recommended_export_power') | float(0)) | abs > 50 }}
+                          export_power_target | float(0)) | abs > 50 }}
                 then:
                   - service: number.set_value
                     target:
                       entity_id: number.inverter_export_surplus_power
                     data:
-                      value: "{{ states('sensor.magna_recommended_export_power') | float(0) }}"
+                      value: "{{ export_power_target | float(0) }}"
               - if:
                   - condition: not
                     conditions:
