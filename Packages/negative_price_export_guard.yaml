@@ -1,30 +1,30 @@
 # Home Assistant package: Ochrana exportu pri zapornych spotovych cenach
 #
-# Súbor je určený na vloženie do adresára packages/ v Home Assistant.
-# Slovenské názvy entít sú zobrazované názvy. default_entity_id drží stabilné entity_id,
-# aby šablóny a automatizácie fungovali aj po premenovaní názvu v UI.
+# Subor je urceny na vlozenie do adresara packages/ v Home Assistant.
+# Slovenske nazvy entit su zobrazovane nazvy. default_entity_id drzi stabilne entity_id,
+# aby sablony a automatizacie fungovali aj po premenovani nazvu v UI.
 #
-# Očakávané entity z integrácií:
+# Ocakavane entity z integracii:
 
-# Integrácia OKTE DAM:
-# - sensor.okte_ceny_elektriny_prices               # OKTE ceny, musí mať atribút prices
+# Integracia OKTE DAM:
+# - sensor.okte_ceny_elektriny_prices               # OKTE ceny, musi mat atribut prices
 
-# Integrácia Solcast:
-# - sensor.solcast_pv_forecast_predpoved_dnes       # Solcast predpoveď dnes, musí mať atribút detailedForecast
+# Integracia Solcast:
+# - sensor.solcast_pv_forecast_predpoved_dnes       # Solcast predpoved dnes, musi mat atribut detailedForecast
 
-# Integrácia meniča (napr. Solarman):
-# - sensor.inverter_today_load_consumption          # dnešná spotreba domu v kWh, reset o polnoci
-# - sensor.inverter_total_energy_export             # celkový export do siete v kWh, stále rastúci counter
-# - sensor.inverter_today_production                # dnešná PV výroba v kWh
+# Integracia menica (napr. Solarman):
+# - sensor.inverter_today_load_consumption          # dnesna spotreba domu v kWh, reset o polnoci
+# - sensor.inverter_total_energy_export             # celkovy export do siete v kWh, stale rastuci counter
+# - sensor.inverter_today_production                # dnesna PV vyroba v kWh
 # - sensor.inverter_battery                         # SOC baterie v %
-# - sensor.inverter_battery_capacity                # kapacita batérie v kWh, fallback je 20 kWh
-# - sensor.inverter_pv_power                        # aktuálny PV výkon vo W
-# - sensor.inverter_load_power                      # aktuálna spotreba domu vo W
-# - select.inverter_work_mode                       # režim meniča: Export First / Zero Export To CT
-# - number.inverter_export_surplus_power            # maximálny výkon exportu do siete vo W
+# - sensor.inverter_battery_capacity                # kapacita baterie v kWh, fallback je 20 kWh
+# - sensor.inverter_pv_power                        # aktualny PV vykon vo W
+# - sensor.inverter_load_power                      # aktualna spotreba domu vo W
+# - select.inverter_work_mode                       # rezim menica: Export First / Zero Export To CT
+# - number.inverter_export_surplus_power            # maximalny vykon exportu do siete vo W
 
-# Vlastne vytvorená entita cez UI - pomocník:
-# - input_number.cena_elektriny_nocny_tarif         # konzervativna hodnota energie v EUR/kWh pre výpočet straténeho potenciálu, fallback je 0.052 EUR/kWh
+# Vlastne vytvorena entita cez UI - pomocnik:
+# - input_number.cena_elektriny_nocny_tarif         # konzervativna hodnota energie v EUR/kWh pre vypocet strateneho potencialu, fallback je 0.052 EUR/kWh
 
 input_datetime:
   export_optimizer_solar_window_start_recorded:
@@ -97,12 +97,11 @@ input_number:
 
   export_optimizer_typical_idle_power_w:
     name: Export Optimizér - typická minimálna spotreba domu vrátane meniča
-    default_entity_id: input_number.export_optimizer_typical_idle_power_w
-    unique_id: export_optimizer_typical_idle_power_w
     min: 0
     max: 3000
     step: 10
     unit_of_measurement: W
+    mode: box
 
 input_boolean:
   export_optimizer_export_guard_enabled:
@@ -136,8 +135,15 @@ template:
           {% set current = states('sensor.inverter_today_load_consumption') | float(0) %}
           {% set sample = ([current - start, 0] | max) | round(2) %}
           {% set old = this.attributes.get('past_consumption', []) if this is defined else [] %}
-          {% set values = old | map(attribute='consumption') | map('float') | list %}
-          {{ ((values | sum) / (values | count)) | round(2) if values | count > 0 else sample }}
+          {% if valid and sample > 0 %}
+            {% set today = now().date() | string %}
+            {% set filtered = old | rejectattr('date', 'eq', today) | list %}
+            {% set samples = ([{'date': today, 'consumption': sample}] + filtered)[:7] %}
+          {% else %}
+            {% set samples = old %}
+          {% endif %}
+          {% set values = samples | map(attribute='consumption') | map('float') | list %}
+          {{ ((values | sum) / (values | count)) | round(2) if values | count > 0 else 6 }}
         attributes:
           past_consumption: >
             {% set recorded = as_datetime(states('input_datetime.export_optimizer_solar_window_start_recorded')) %}
@@ -180,6 +186,7 @@ template:
           {{ ns.price if ns.price is not none else states('sensor.okte_ceny_elektriny_prices') | float(999) }}
         attributes:
           source: okte_prices_attribute
+
       - name: Cena výkupu elektriny
         # Cena výkupu je 0 keď je spotová cena záporná, inak je to konzervatívna hodnota založená na nočnom tarife
         # počas víkendu (teda s 12% zľavou), aby sme vedeli odhadnúť stratený potenciál pri záporných cenách.
@@ -187,12 +194,13 @@ template:
         unique_id: export_optimizer_solar_sell_price
         unit_of_measurement: EUR/kWh
         state: >
-          {% if states('sensor.export_optimizer_okte_spotova_cena') | float(0) >= 0 %}  
+          {% if states('sensor.export_optimizer_okte_spotova_cena') | float(0) >= 0 %}
             {% set price = states('input_number.cena_elektriny_nocny_tarif') | float(0.052) * 0.88 %}
           {% else %}
             {% set price = 0 %}
           {% endif %}
           {{ price }}
+
   - trigger:
       - platform: time_pattern
         minutes: "/10"
@@ -248,7 +256,6 @@ template:
             {% set end_time = today_at('18:00') | as_timestamp %}
             {% set current_time = now() | as_timestamp %}
             {% set hours_left = (end_time - current_time) / 3600 %}
-            {# Ensure hours_left isn't negative if it's past 18:00 #}
             {% set hours_left = [hours_left, 0] | max %}
             {% set idle_power_w = states('input_number.export_optimizer_typical_idle_power_w') | float(0) %}
             {% set minimum_baseload_kwh = (idle_power_w * hours_left) / 1000 %}
