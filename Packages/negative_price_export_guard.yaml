@@ -165,7 +165,6 @@ template:
           {{ ns.price if ns.price is not none else states('sensor.okte_ceny_elektriny_prices') | float(999) }}
         attributes:
           source: okte_prices_attribute
-    sensor: 
       - name: Cena výkupu elektriny
         # Cena výkupu je 0 keď je spotová cena záporná, inak je to konzervatívna hodnota založená na nočnom tarife
         # počas víkendu (teda s 12% zľavou), aby sme vedeli odhadnúť stratený potenciál pri záporných cenách.
