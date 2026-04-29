@@ -134,20 +134,26 @@ template:
           {% set valid = recorded is not none and recorded.date() == now().date() %}
           {% set start = states('input_number.export_optimizer_solar_window_start_load_kwh') | float(0) %}
           {% set current = states('sensor.inverter_today_load_consumption') | float(0) %}
-          {% set sample = [current - start, 0] | max if valid else 0 %}
-          {% set old = (this.attributes.samples_csv | default('', true)).split(',') | reject('eq','') | map('float') | list %}
-          {% set new = ([sample] + old)[:7] if sample > 0 else old %}
-          {{ ((new | sum) / (new | count)) | round(2) if new | count > 0 else 6 }}
+          {% set sample = ([current - start, 0] | max) | round(2) %}
+          {% set old = this.attributes.get('past_consumption', []) if this is defined else [] %}
+          {% set values = old | map(attribute='consumption') | map('float') | list %}
+          {{ ((values | sum) / (values | count)) | round(2) if values | count > 0 else sample }}
         attributes:
-          samples_csv: >
+          past_consumption: >
             {% set recorded = as_datetime(states('input_datetime.export_optimizer_solar_window_start_recorded')) %}
             {% set valid = recorded is not none and recorded.date() == now().date() %}
             {% set start = states('input_number.export_optimizer_solar_window_start_load_kwh') | float(0) %}
             {% set current = states('sensor.inverter_today_load_consumption') | float(0) %}
-            {% set sample = [current - start, 0] | max if valid else 0 %}
-            {% set old = (this.attributes.samples_csv | default('', true)).split(',') | reject('eq','') | map('float') | list %}
-            {% set new = ([sample] + old)[:7] if sample > 0 else old %}
-            {{ new | join(',') }}
+            {% set sample = ([current - start, 0] | max) | round(2) %}
+            {% set old = this.attributes.get('past_consumption', []) if this is defined else [] %}
+
+            {% if valid and sample > 0 %}
+              {% set today = now().date() | string %}
+              {% set filtered = old | rejectattr('date', 'eq', today) | list %}
+              {{ ([{'date': today, 'consumption': sample}] + filtered)[:7] }}
+            {% else %}
+              {{ old }}
+            {% endif %}
 
   - trigger:
       - platform: time_pattern
@@ -239,10 +245,10 @@ template:
           {% if now() >= today_at('18:00') %}
             0
           {% else %}
-            {% set end_time = today_at('17:00') | as_timestamp %}
+            {% set end_time = today_at('18:00') | as_timestamp %}
             {% set current_time = now() | as_timestamp %}
             {% set hours_left = (end_time - current_time) / 3600 %}
-            {# Ensure hours_left isn't negative if it's past 17:00 #}
+            {# Ensure hours_left isn't negative if it's past 18:00 #}
             {% set hours_left = [hours_left, 0] | max %}
             {% set idle_power_w = states('input_number.export_optimizer_typical_idle_power_w') | float(0) %}
             {% set minimum_baseload_kwh = (idle_power_w * hours_left) / 1000 %}
