@@ -16,8 +16,7 @@
 # - sensor.inverter_load_power                      # aktualna spotreba domu vo W
 # - select.inverter_work_mode                       # rezim menica: Export First / Zero Export To CT
 # - number.inverter_export_surplus_power            # maximalny vykon exportu do siete vo W
-# - sensor.cena_vykupu_elektriny                    # realna vykupna cena v EUR/kWh, pri zapornej spotovej cene ma byt 0
-# - input_number.cena_elektriny_nocny_tarif         # konzervativna hodnota energie pre vypocet strateneho potencialu
+# - input_number.cena_elektriny_nocny_tarif         # konzervativna hodnota energie v EUR/kWh pre vypocet strateneho potencialu
 
 input_datetime:
   magna_solar_window_start_recorded:
@@ -158,7 +157,20 @@ template:
           {{ ns.price if ns.price is not none else states('sensor.okte_ceny_elektriny_prices') | float(999) }}
         attributes:
           source: okte_prices_attribute
-
+    sensor: 
+      - name: Cena výkupu elektriny
+        # Cena výkupu je 0 keď je spotová cena záporná, inak je to konzervatívna hodnota založená na nočnom tarife
+        # počas víkendu (teda s 12% zľavou), aby sme vedeli odhadnúť stratený potenciál pri záporných cenách.
+        default_entity_id: sensor.cena_vykupu_elektriny
+        unique_id: magna_solar_sell_price
+        unit_of_measurement: EUR/kWh
+        state: >
+          {% if states('sensor.magna_okte_spotova_cena') | float(0) >= 0 %}  
+            {% set price = states('input_number.cena_elektriny_nocny_tarif') | float(0.052) * 0.88 %}
+          {% else %}
+            {% set price = 0 %}
+          {% endif %}
+          {{ price }}
   - trigger:
       - platform: time_pattern
         minutes: "/10"
