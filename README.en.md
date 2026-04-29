@@ -9,13 +9,15 @@ Slovak version: [README.md](README.md)
 ## What It Does
 
 - Calculates the current OKTE spot price from the `prices` attribute, not only from the sensor state.
-- Looks for future negative spot-price periods until 18:00.
+- Looks for future price periods below the configured export floor until 18:00.
 - Learns house consumption during the solar window, 07:00-18:00, from previous days.
-- Uses the daily Solcast PV forecast, including the detailed forecast attribute.
-- Calculates a recommended export power before a negative-price window.
+- Uses the daily Solcast PV forecast, including the `detailedForecast` attribute.
+- Adds a minimum expected base load from `input_number.export_optimizer_typical_idle_power_w`.
+- Calculates a recommended export power before a negative or otherwise unwanted price window.
 - Switches the inverter to `Export First` only when it needs to strategically create battery headroom.
 - Returns the inverter to `Zero Export To CT` when controlled export is no longer needed.
 - Includes a toggle to disable early battery export and use only current PV surplus instead.
+- Raises the export limit when the battery is full in `Zero Export To CT`, so the inverter does not unnecessarily curtail PV production during non-negative prices.
 - Tracks exported energy during negative prices, energy exported by the automation, estimated savings, and wasted potential.
 
 ## Who This Is For
@@ -39,9 +41,9 @@ Normally, the inverter stays in `Zero Export To CT`. If your inverter still expo
 
 In simplified terms:
 
-1. It checks whether another negative spot-price period is expected before 18:00.
-2. It estimates how much PV energy will arrive before and during that negative period.
-3. It estimates the remaining house consumption in the solar window.
+1. It checks whether another period below the configured price floor is expected before 18:00.
+2. It estimates how much PV energy will arrive before and during that period.
+3. It estimates the remaining house consumption in the solar window, including a minimum base-load estimate.
 4. It checks the current battery SOC and target reserve.
 5. It calculates how much energy should be exported early so the battery can absorb PV during negative prices.
 6. It sets the grid export limit through `number.inverter_export_surplus_power`.
@@ -51,8 +53,6 @@ In simplified terms:
 ## Requirements
 
 ### Integrations
-
-You need working entities from these sources:
 
 - **[OKTE DAM](https://github.com/rgildein/okte-home-assistant)** or a similar integration with spot prices and a `prices` attribute.
 - **[Solcast](https://github.com/BJReplay/ha-solcast-solar)** with a daily forecast and `detailedForecast` attribute.
@@ -83,38 +83,18 @@ If your entities have different names, edit them in [`Packages/negative_price_ex
 
 1. Enable Home Assistant packages if you do not already use them.
 
-   Add this to `configuration.yaml`:
-
    ```yaml
    homeassistant:
      packages: !include_dir_named packages
    ```
 
-2. Create this folder in your Home Assistant configuration directory:
+2. Create the `packages` folder in your Home Assistant configuration directory.
 
-   ```text
-   packages
-   ```
-
-3. Copy this file:
-
-   ```text
-   Packages/negative_price_export_guard.yaml
-   ```
-
-   into your Home Assistant config folder as:
-
-   ```text
-   config/packages/negative_price_export_guard.yaml
-   ```
+3. Copy `Packages/negative_price_export_guard.yaml` into `config/packages/negative_price_export_guard.yaml`.
 
 4. Check and adjust entity IDs for your own installation.
 
-5. In Home Assistant, go to:
-
-   ```text
-   Settings -> Developer Tools -> YAML -> Check configuration
-   ```
+5. In Home Assistant, go to `Settings -> Developer Tools -> YAML -> Check configuration`.
 
 6. If the configuration check passes, restart Home Assistant.
 
@@ -122,27 +102,7 @@ If your entities have different names, edit them in [`Packages/negative_price_ex
 
 For a more detailed setup walkthrough, see [Docs/Setup.md](Docs/Setup.md).
 
-## Energy Price Helper
-
-The package expects this helper:
-
-```yaml
-input_number.cena_elektriny_nocny_tarif
-```
-
-This helper represents a conservative value of energy in EUR/kWh that you would otherwise be able to use later from the virtual battery. It is used to estimate wasted potential when energy is exported during negative prices.
-
-If you do not have it yet, create it in the UI:
-
-```text
-Settings -> Devices & services -> Helpers -> Create helper -> Number
-```
-
-A reasonable starting value can be your night tariff in EUR/kWh.
-
 ## Important Controls
-
-After installation, the package creates several helpers. These are the most important ones:
 
 | Entity | Meaning |
 |---|---|
@@ -150,6 +110,7 @@ After installation, the package creates several helpers. These are the most impo
 | `input_boolean.export_optimizer_allow_battery_early_export` | Allows strategic early export from the battery |
 | `input_number.export_optimizer_min_reserve_soc` | Minimum battery reserve you do not want to discharge below |
 | `input_number.export_optimizer_consumption_margin_kwh` | Safety margin for the consumption estimate |
+| `input_number.export_optimizer_typical_idle_power_w` | Minimum expected house load, including inverter self-consumption, for the rest of the solar window |
 | `input_number.export_optimizer_export_surplus_threshold_kwh` | Minimum expected surplus before the automation intervenes |
 | `input_number.export_optimizer_min_export_power_w` | Lower limit for controlled export |
 | `input_number.export_optimizer_max_export_power_w` | Upper limit for controlled export and full-battery export limit |
@@ -157,12 +118,11 @@ After installation, the package creates several helpers. These are the most impo
 
 ## Recommended Starting Values
 
-Start conservatively:
-
 | Setting | Recommended value |
 |---|---:|
 | Minimum battery reserve | `40 %` |
 | Consumption estimate margin | `2 kWh` |
+| Typical minimum house load | `200-500 W`, depending on the house and inverter |
 | Minimum expected surplus | `1 kWh` |
 | Minimum controlled export | `500 W` |
 | Maximum controlled export | `3000 W` |
@@ -172,13 +132,7 @@ After a few sunny days, inspect the behavior and tune the values.
 
 ## Battery-Saving Mode
 
-If you turn off:
-
-```text
-Export Optimizer - allow early battery export
-```
-
-the automation tries to avoid discharging the battery and limits export roughly to the current live PV surplus:
+If you turn off `Export Optimizer - allow early battery export`, the automation tries to avoid discharging the battery and limits export roughly to the current live PV surplus:
 
 ```text
 PV power - house load power - 200 W
@@ -188,15 +142,14 @@ This mode can be useful if you want to reduce battery cycling. It may be less ef
 
 ## What To Watch After Startup
 
-These entities are the most useful for debugging and tuning:
-
 | Entity | Meaning |
 |---|---|
 | `sensor.export_optimizer_okte_spotova_cena` | Current spot price calculated from OKTE attributes |
-| `sensor.export_optimizer_negative_price_minutes_until_18` | Remaining negative-price minutes until 18:00 |
+| `sensor.export_optimizer_negative_price_minutes_until_18` | Remaining minutes below the price floor until 18:00 |
 | `sensor.export_optimizer_recommended_export_power` | Recommended strategic export power |
 | `binary_sensor.export_optimizer_export_wanted` | Whether the automation wants `Export First` |
 | `input_boolean.export_optimizer_export_guard_active` | Whether the automation is currently controlling export |
+| `sensor.export_optimizer_remaining_solar_window_load_estimate` | Remaining load estimate including the minimum base load |
 | `sensor.export_optimizer_expected_surplus_today` | Estimated surplus energy until the end of the solar window |
 | `sensor.export_optimizer_battery_target_soc` | Battery SOC target based on estimated production and consumption |
 | `sensor.export_optimizer_exported_energy_by_automation` | Energy exported by the automation |
@@ -205,8 +158,6 @@ These entities are the most useful for debugging and tuning:
 | `sensor.export_optimizer_negative_price_wasted_potential` | Estimated lost value during negative prices |
 
 ## Screenshot Placeholders
-
-These are good places to later add real Home Assistant screenshots.
 
 ### 1. Daily PV, Load, Battery, And Grid Flow Chart
 
@@ -222,9 +173,9 @@ This image should explain why the automation started exporting before the negati
 
 ### 3. Automation Helper Sensors
 
-<!-- TODO: Add a screenshot of a small dashboard containing export_optimizer_recommended_export_power, export_optimizer_export_wanted, export_optimizer_expected_surplus_today, and export_optimizer_negative_price_minutes_until_18. -->
+<!-- TODO: Add a screenshot of a small dashboard containing export_optimizer_recommended_export_power, export_optimizer_export_wanted, export_optimizer_remaining_solar_window_load_estimate, and export_optimizer_negative_price_minutes_until_18. -->
 
-This image should show the automation’s decision-making state while preparing for negative prices.
+This image should show the automation's decision-making state while preparing for negative prices.
 
 ### 4. Savings And Wasted Potential
 
@@ -244,40 +195,15 @@ Check that you did not move templates containing `now()` into regular triggerles
 
 ### The Inverter Does Not Switch Mode
 
-Check that the options in `select.inverter_work_mode` exactly match:
-
-```text
-Export First
-Zero Export To CT
-```
-
-If your inverter exposes different option names, edit the automation.
+Check that the options in `select.inverter_work_mode` exactly match `Export First` and `Zero Export To CT`. If your inverter exposes different option names, edit the automation.
 
 ### Power Values Look Wrong
 
-The package assumes these entities are in watts:
-
-```text
-sensor.inverter_pv_power
-sensor.inverter_load_power
-number.inverter_export_surplus_power
-```
-
-If your inverter uses kW, adjust the calculations.
+The package assumes `sensor.inverter_pv_power`, `sensor.inverter_load_power`, and `number.inverter_export_surplus_power` are in watts. If your inverter uses kW, adjust the calculations.
 
 ### The Battery Discharges More Than Desired
 
-Increase:
-
-```text
-input_number.export_optimizer_min_reserve_soc
-```
-
-or turn off:
-
-```text
-input_boolean.export_optimizer_allow_battery_early_export
-```
+Increase `input_number.export_optimizer_min_reserve_soc` or turn off `input_boolean.export_optimizer_allow_battery_early_export`.
 
 ## Safety Notes
 
