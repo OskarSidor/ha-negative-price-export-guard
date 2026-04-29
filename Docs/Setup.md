@@ -80,7 +80,7 @@ config/packages/negative_price_export_guard.yaml
 
 ## 3. Create The Energy Value Helper
 
-The package expects this helper:
+The package expects this helper by default:
 
 ```yaml
 input_number.cena_elektriny_nocny_tarif
@@ -105,28 +105,32 @@ Suggested settings:
 
 This value is used to estimate what exported energy would have been worth if it had counted into your virtual battery. If you are unsure, start with your approximate night tariff in EUR/kWh.
 
+If you use a different helper entity, change `input_text.export_optimizer_entity_energy_value_helper` after installing the package.
+
 ## 4. Map Your Entity IDs
 
-Open `negative_price_export_guard.yaml` and check every entity in the expected-entities section.
+The package keeps all external entity IDs in one configuration section at the beginning of `negative_price_export_guard.yaml`.
 
-Default mapping:
+Look for the `input_text:` block and adjust these values if your entities have different names:
 
-| Purpose | Default entity |
+| Mapping helper | Default value |
 |---|---|
-| OKTE prices | `sensor.okte_ceny_elektriny_prices` |
-| Solcast forecast today | `sensor.solcast_pv_forecast_predpoved_dnes` |
-| Daily house load consumption | `sensor.inverter_today_load_consumption` |
-| Total grid export | `sensor.inverter_total_energy_export` |
-| Daily PV production | `sensor.inverter_today_production` |
-| Battery SOC | `sensor.inverter_battery` |
-| Battery capacity | `sensor.inverter_battery_capacity` |
-| Current PV power | `sensor.inverter_pv_power` |
-| Current load power | `sensor.inverter_load_power` |
-| Inverter mode select | `select.inverter_work_mode` |
-| Export power limit | `number.inverter_export_surplus_power` |
-| Energy value helper | `input_number.cena_elektriny_nocny_tarif` |
+| `input_text.export_optimizer_entity_okte_prices` | `sensor.okte_ceny_elektriny_prices` |
+| `input_text.export_optimizer_entity_solcast_forecast_today` | `sensor.solcast_pv_forecast_predpoved_dnes` |
+| `input_text.export_optimizer_entity_today_load_consumption` | `sensor.inverter_today_load_consumption` |
+| `input_text.export_optimizer_entity_total_energy_export` | `sensor.inverter_total_energy_export` |
+| `input_text.export_optimizer_entity_today_production` | `sensor.inverter_today_production` |
+| `input_text.export_optimizer_entity_battery_soc` | `sensor.inverter_battery` |
+| `input_text.export_optimizer_entity_battery_capacity` | `sensor.inverter_battery_capacity` |
+| `input_text.export_optimizer_entity_pv_power` | `sensor.inverter_pv_power` |
+| `input_text.export_optimizer_entity_load_power` | `sensor.inverter_load_power` |
+| `input_text.export_optimizer_entity_inverter_work_mode` | `select.inverter_work_mode` |
+| `input_text.export_optimizer_entity_export_surplus_power` | `number.inverter_export_surplus_power` |
+| `input_text.export_optimizer_entity_energy_value_helper` | `input_number.cena_elektriny_nocny_tarif` |
+| `input_text.export_optimizer_mode_export_first` | `Export First` |
+| `input_text.export_optimizer_mode_zero_export` | `Zero Export To CT` |
 
-If your entities use different names, replace all occurrences in the package.
+You can change these values directly in the YAML before the first install, or later from Home Assistant as text helpers. This is usually easier than searching through the whole package.
 
 ## 5. Check Units
 
@@ -134,35 +138,34 @@ This is important.
 
 The package assumes:
 
-| Entity | Expected unit |
+| Mapping helper | Expected unit of the referenced entity |
 |---|---|
-| `sensor.inverter_pv_power` | W |
-| `sensor.inverter_load_power` | W |
-| `number.inverter_export_surplus_power` | W |
-| `sensor.inverter_today_load_consumption` | kWh |
-| `sensor.inverter_today_production` | kWh |
-| `sensor.inverter_total_energy_export` | kWh |
-| `sensor.inverter_battery` | % |
-| `sensor.inverter_battery_capacity` | kWh |
+| `input_text.export_optimizer_entity_pv_power` | W |
+| `input_text.export_optimizer_entity_load_power` | W |
+| `input_text.export_optimizer_entity_export_surplus_power` | W |
+| `input_text.export_optimizer_entity_today_load_consumption` | kWh |
+| `input_text.export_optimizer_entity_today_production` | kWh |
+| `input_text.export_optimizer_entity_total_energy_export` | kWh |
+| `input_text.export_optimizer_entity_battery_soc` | % |
+| `input_text.export_optimizer_entity_battery_capacity` | kWh |
 
 If your inverter exposes power in kW instead of W, you must adjust the calculations that use PV power, load power, and export power.
 
 ## 6. Confirm Inverter Mode Names
 
-The package expects these exact options in:
-
-```yaml
-select.inverter_work_mode
-```
-
-Expected options:
+The package expects these options by default:
 
 ```text
 Export First
 Zero Export To CT
 ```
 
-Check this in Home Assistant Developer Tools. If your inverter uses different option text, update the automation actions.
+Check this in Home Assistant Developer Tools. If your inverter uses different option text, change:
+
+```text
+input_text.export_optimizer_mode_export_first
+input_text.export_optimizer_mode_zero_export
+```
 
 ## 7. Run A Configuration Check
 
@@ -285,11 +288,9 @@ input_boolean.export_optimizer_allow_battery_early_export
 input_boolean.export_optimizer_export_guard_active
 sensor.export_optimizer_expected_surplus_today
 sensor.export_optimizer_battery_target_soc
-number.inverter_export_surplus_power
-select.inverter_work_mode
-sensor.inverter_battery
-sensor.inverter_pv_power
-sensor.inverter_load_power
+input_text.export_optimizer_entity_okte_prices
+input_text.export_optimizer_entity_inverter_work_mode
+input_text.export_optimizer_entity_export_surplus_power
 ```
 
 This makes it much easier to see why the automation is or is not active.
@@ -337,11 +338,11 @@ Before leaving the automation enabled unattended:
 
 The idea is not Slovakia-specific, but the price source and supplier rules are.
 
-To adapt it elsewhere, replace:
+To adapt it elsewhere, update:
 
-- the OKTE price entity,
+- the mapped spot-price entity,
 - the price attribute parsing if needed,
-- the buyout/virtual-battery value calculation,
+- the buyout/virtual-battery value helper,
 - the inverter mode names,
 - the solar window end time if local PV production differs.
 
