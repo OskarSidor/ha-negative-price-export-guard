@@ -324,6 +324,7 @@ template:
             {% set battery_now = cap * soc / 100 %}
             {% set threshold = states('input_number.export_optimizer_export_surplus_threshold_kwh') | float(1) %}
             {% set remaining_load = states('sensor.export_optimizer_remaining_solar_window_load_estimate') | float(0) %}
+            {% set remaining_pv = states('sensor.export_optimizer_remaining_pv_forecast_today') | float(0) %}
             {% set min_w = states('input_number.export_optimizer_min_export_power_w') | float(500) %}
             {% set max_w = states('input_number.export_optimizer_max_export_power_w') | float(3000) %}
             {% set battery_export_allowed = is_state('input_boolean.export_optimizer_allow_battery_early_export', 'on') %}
@@ -387,16 +388,21 @@ template:
                 {% endif %}
               {% endfor %}
 
+              # Approximate daytime load evenly across the remaining solar window. #}
               {% set minutes_to_18 = ((as_timestamp(window_end) - as_timestamp(now_local)) / 60) %}
               {% set load_rate = remaining_load / minutes_to_18 if minutes_to_18 > 0 else 0 %}
               {% set load_before_neg = load_rate * mins.before_neg %}
-              {% set neg_minutes = ((as_timestamp(neg.end) - as_timestamp(neg.start)) / 60) %}
+              {% set neg_minutes = ((as_timestamp(neg.end) - as_timestamp(neg.start)) / 60) if neg.start is not none else 0 %}
               {% set load_during_neg = load_rate * neg_minutes %}
 
-              {% if mins.before_neg > 0 %}
+              {# Export needed before negative block so battery does not fill and spill during it. #}
+              {% if neg.start is not none and mins.before_neg > 0 %}
                 {% set net_before_neg = pv.before_neg - load_before_neg %}
                 {% set net_during_neg = pv.during_neg - load_during_neg %}
-                {% set energy_needed_before_neg = [battery_now + net_before_neg + net_during_neg - cap + threshold, 0] | max %}
+                {% set net_until_18 = remaining_pv - remaining_load %}
+                {% set total_excess = [battery_now + net_until_18 - cap + threshold, 0] | max %}
+                {% set available_export_before_neg = max_w * mins.before_neg / 60 / 1000 %}
+                {% set energy_needed_before_neg = [total_excess, available_export_before_neg] | min %}
                 {% set pre_neg_w = energy_needed_before_neg * 1000 / (mins.before_neg / 60) %}
               {% else %}
                 {% set pre_neg_w = 0 %}
@@ -410,10 +416,8 @@ template:
 
               {% if raw_w <= 0 %}
                 0
-              {% elif battery_export_allowed %}
-                {{ [[raw_w, min_w] | max, max_w] | min | round(0) }}
               {% else %}
-                {{ [raw_w, max_w] | min | round(0) }}
+                {{ [[raw_w, min_w] | max, max_w] | min | round(0) }}
               {% endif %}
             {% endif %}
           {% endif %}
