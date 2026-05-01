@@ -306,6 +306,28 @@ sensor.solcast_pv_forecast_predpoved_zostavajuca_dnes
 
 This makes it much easier to see why the automation is or is not active.
 
+For an easier setup, use [auto-entities](https://github.com/thomasloven/lovelace-auto-entities) to automatically list all entities created by this project. The `custom:auto-entities` card must be installed in Home Assistant, for example through HACS.
+
+```yaml
+type: custom:auto-entities
+card:
+  type: entities
+  title: Export Optimizér
+  show_header_toggle: false
+filter:
+  include:
+    - entity_id: /export_optimizer/
+      sort:
+        method: entity_id
+  exclude:
+    - options: {}
+      entity_id: input_number.export_optimizer_solar_window_start_load_kwh
+    - options: {}
+      entity_id: input_datetime.export_optimizer_solar_window_start_recorded
+```
+
+The card filters entities by `export_optimizer` in the entity ID and hides the two technical morning-record helpers that users normally do not need to edit.
+
 ## 16. Accounting Sensors
 
 The package creates cumulative sensors for tracking results:
