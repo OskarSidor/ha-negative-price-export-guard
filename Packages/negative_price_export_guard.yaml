@@ -22,8 +22,9 @@
 # - sensor.inverter_pv_power                        # aktualny PV vykon vo W
 # - sensor.inverter_load_power                      # aktualna spotreba domu vo W
 # - select.inverter_work_mode                       # rezim menica: Export First / Zero Export To CT
+# - switch.inverter_export_surplus                  # zapnutie exportu PV prebytkov v rezime Zero Export To CT
 # - number.inverter_export_surplus_power            # maximalny vykon exportu do siete vo W
-# - number.solarny_menic_grid_max_export_power      # maximalny povovleny vykon exportu do siete povoleny menicom, pouzivany ako hard limit pre vypocet odporucaneho exportu
+# - number.solarny_menic_grid_max_export_power      # maximalny povoleny vykon exportu do siete povoleny menicom, pouzivany ako hard limit pre vypocet odporucaneho exportu
 
 # Vlastne vytvorena entita cez UI - pomocnik:
 # - input_number.cena_elektriny_nocny_tarif         # konzervativna hodnota energie v EUR/kWh pre vypocet strateneho potencialu, fallback je 0.052 EUR/kWh
@@ -293,8 +294,6 @@ template:
         state: >
           {% set cap = states('sensor.inverter_battery_capacity') | float(20) %}
           {% set soc = states('sensor.inverter_battery') | float(0) %}
-          {% set reserve = states('input_number.export_optimizer_min_reserve_soc') | float(40) %}
-          {% set battery_above_reserve = [((soc - reserve) / 100 * cap), 0] | max %}
           {% set remaining_bat_charging_cap = [((100 - soc) / 100 * cap), 0] | max %}
           {% set remaining_pv = states('sensor.solcast_pv_forecast_predpoved_zostavajuca_dnes') | float(0) %}
           {% set remaining_load = states('sensor.export_optimizer_remaining_solar_window_load_estimate') | float(0) %}
@@ -412,8 +411,10 @@ template:
 
               {% if raw_w <= 0 %}
                 0
-              {% else %}
+              {% elif battery_export_allowed %}
                 {{ [[raw_w, min_w] | max, max_w] | min | round(0) }}
+              {% else %}
+                {{ [raw_w, max_w] | min | round(0) }}
               {% endif %}
             {% endif %}
           {% endif %}
@@ -583,27 +584,34 @@ automation:
         event: start
     action:
       - choose:
-        - conditions:
-            - condition: numeric_state
-              entity_id: sensor.inverter_battery
-              above: 99
-            - condition: state
-              entity_id: switch.inverter_export_surplus
-              state:
-                - "on"
-            - condition: state
-              entity_id: select.inverter_work_mode
-              state:
-                - Zero Export To CT
-          sequence:
-            - target:
-                entity_id: number.inverter_export_surplus_power
-              data:
-                value: >-
-                  {{ [states('number.solarny_menic_grid_max_export_power') |
-                  float(0), states('input_number.export_optimizer_max_export_power_w') |
-                  float(0) ] | min }}
-              action: number.set_value
+          - conditions:
+              - condition: state
+                entity_id: input_boolean.export_optimizer_export_guard_enabled
+                state: "on"
+              - condition: numeric_state
+                entity_id: sensor.inverter_battery
+                above: 99
+              - condition: state
+                entity_id: switch.inverter_export_surplus
+                state: "on"
+              - condition: state
+                entity_id: select.inverter_work_mode
+                state: "Zero Export To CT"
+              - condition: state
+                entity_id: binary_sensor.export_optimizer_export_wanted
+                state: "off"
+            sequence:
+              - target:
+                  entity_id: number.inverter_export_surplus_power
+                data:
+                  value: >-
+                    {{ [states('number.solarny_menic_grid_max_export_power') |
+                    float(0), states('input_number.export_optimizer_max_export_power_w') |
+                    float(0) ] | min }}
+                action: number.set_value
+              - action: input_boolean.turn_off
+                target:
+                  entity_id: input_boolean.export_optimizer_export_guard_active
           - conditions:
               - condition: state
                 entity_id: input_boolean.export_optimizer_export_guard_enabled
