@@ -464,10 +464,10 @@ template:
         device_class: energy
         state_class: total_increasing
         state: >
-          {% set previous_export = this.attributes.last_export_kwh | default(trigger.from_state.state | float(0), true) | float(0) %}
           {% set current_export = trigger.to_state.state | float(0) %}
+          {% set previous_export = this.attributes.last_export_kwh | default(trigger.from_state.state | float(0), true) | float(current_export) %}
           {% set delta = current_export - previous_export %}
-          {% set valid_delta = delta if delta > 0 else 0 %}
+          {% set valid_delta = delta if delta > 0 and previous_export > 0 else 0 %}
           {% set previous_total = this.state | float(0) %}
           {% if states('sensor.export_optimizer_okte_spotova_cena') | float(999) < 0 %}
             {{ (previous_total + valid_delta) | round(4) }}
@@ -475,7 +475,7 @@ template:
             {{ previous_total | round(4) }}
           {% endif %}
         attributes:
-          last_export_kwh: "{{ trigger.to_state.state | float(0) }}"
+          last_export_kwh: "{{ current_export }}"
 
       - name: Export Optimizér - energia exportovana automatizaciou
         default_entity_id: sensor.export_optimizer_exported_energy_by_automation
@@ -484,10 +484,10 @@ template:
         device_class: energy
         state_class: total_increasing
         state: >
-          {% set previous_export = this.attributes.last_export_kwh | default(trigger.from_state.state | float(0), true) | float(0) %}
           {% set current_export = trigger.to_state.state | float(0) %}
+          {% set previous_export = this.attributes.last_export_kwh | default(trigger.from_state.state | float(0), true) | float(current_export) %}
           {% set delta = current_export - previous_export %}
-          {% set valid_delta = delta if delta > 0 else 0 %}
+          {% set valid_delta = delta if delta > 0 and previous_export > 0 else 0 %}
           {% set previous_total = this.state | float(0) %}
           {% if is_state('input_boolean.export_optimizer_export_guard_active', 'on') %}
             {{ (previous_total + valid_delta) | round(4) }}
@@ -495,7 +495,7 @@ template:
             {{ previous_total | round(4) }}
           {% endif %}
         attributes:
-          last_export_kwh: "{{ trigger.to_state.state | float(0) }}"
+          last_export_kwh: "{{ current_export }}"
 
       - name: Export Optimizér - uspora automatizovaneho exportu
         default_entity_id: sensor.export_optimizer_automation_export_savings
@@ -504,10 +504,10 @@ template:
         device_class: monetary
         state_class: total
         state: >
-          {% set previous_export = this.attributes.last_export_kwh | default(trigger.from_state.state | float(0), true) | float(0) %}
           {% set current_export = trigger.to_state.state | float(0) %}
+          {% set previous_export = this.attributes.last_export_kwh | default(trigger.from_state.state | float(0), true) | float(current_export) %}
           {% set delta = current_export - previous_export %}
-          {% set valid_delta = delta if delta > 0 else 0 %}
+          {% set valid_delta = delta if delta > 0 and previous_export > 0 else 0 %}
           {% set previous_total = this.state | float(0) %}
           {% set buyout_price = states('sensor.cena_vykupu_elektriny') | float(0) %}
           {% if is_state('input_boolean.export_optimizer_export_guard_active', 'on') %}
@@ -516,7 +516,7 @@ template:
             {{ previous_total | round(4) }}
           {% endif %}
         attributes:
-          last_export_kwh: "{{ trigger.to_state.state | float(0) }}"
+          last_export_kwh: "{{ current_export }}"
           current_buyout_price_eur_kwh: "{{ states('sensor.cena_vykupu_elektriny') | float(0) }}"
 
       - name: Export Optimizér - strateny potencial pri zapornej cene
@@ -529,7 +529,7 @@ template:
           {% set previous_export = this.attributes.last_export_kwh | default(trigger.from_state.state | float(0), true) | float(0) %}
           {% set current_export = trigger.to_state.state | float(0) %}
           {% set delta = current_export - previous_export %}
-          {% set valid_delta = delta if delta > 0 else 0 %}
+          {% set valid_delta = delta if delta > 0 and previous_export > 0 else 0 %}
           {% set previous_total = this.state | float(0) %}
           {% set buyout_price = states('input_number.cena_elektriny_nocny_tarif') | float(0.052) * 0.88 %}
           {% if states('sensor.export_optimizer_okte_spotova_cena') | float(999) < 0 %}
@@ -538,7 +538,7 @@ template:
             {{ previous_total | round(4) }}
           {% endif %}
         attributes:
-          last_export_kwh: "{{ trigger.to_state.state | float(0) }}"
+          last_export_kwh: "{{ current_export }}"
           hypothetical_buyout_price_eur_kwh: "{{ states('input_number.cena_elektriny_nocny_tarif') | float(0.052) * 0.88 }}"
 
 automation:
