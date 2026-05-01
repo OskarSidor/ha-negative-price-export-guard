@@ -306,6 +306,28 @@ sensor.solcast_pv_forecast_predpoved_zostavajuca_dnes
 
 Takto je oveľa jednoduchšie vidieť, prečo automatizácia je alebo nie je aktívna.
 
+Na jednoduchšie vytvorenie karty použite [auto-entities](https://github.com/thomasloven/lovelace-auto-entities), aby Home Assistant automaticky zobrazil všetky entity vytvorené týmto projektom. Karta `custom:auto-entities` musí byť v Home Assistant nainštalovaná, napríklad cez HACS.
+
+```yaml
+type: custom:auto-entities
+card:
+  type: entities
+  title: Export Optimizér
+  show_header_toggle: false
+filter:
+  include:
+    - entity_id: /export_optimizer/
+      sort:
+        method: entity_id
+  exclude:
+    - options: {}
+      entity_id: input_number.export_optimizer_solar_window_start_load_kwh
+    - options: {}
+      entity_id: input_datetime.export_optimizer_solar_window_start_recorded
+```
+
+Karta filtruje entity podľa `export_optimizer` v entity ID a skryje dvoch technických pomocníkov pre ranný záznam spotreby, ktoré bežne netreba ručne upravovať.
+
 ## 16. Účtovné senzory
 
 Balík vytvára kumulatívne senzory na sledovanie výsledkov:
