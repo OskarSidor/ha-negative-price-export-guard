@@ -88,6 +88,30 @@ If your entities have different names, edit them in [`Packages/negative_price_ex
 
 For a more detailed setup walkthrough, see [Docs/Setup.md](Docs/Setup.md).
 
+## Project Entities Card
+
+To quickly find and adjust all entities created by this project, add this Lovelace card using [auto-entities](https://github.com/thomasloven/lovelace-auto-entities). The `custom:auto-entities` card must be installed in Home Assistant, for example through HACS.
+
+```yaml
+type: custom:auto-entities
+card:
+  type: entities
+  title: Export Optimizér
+  show_header_toggle: false
+filter:
+  include:
+    - entity_id: /export_optimizer/
+      sort:
+        method: entity_id
+  exclude:
+    - options: {}
+      entity_id: input_number.export_optimizer_solar_window_start_load_kwh
+    - options: {}
+      entity_id: input_datetime.export_optimizer_solar_window_start_recorded
+```
+
+The card filters entities by `export_optimizer` in the entity ID. It intentionally hides the technical morning-load value and its timestamp, because those are managed automatically.
+
 ## Important Controls
 
 | Entity | Meaning |
