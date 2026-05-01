@@ -11,6 +11,7 @@
 
 # Integracia Solcast:
 # - sensor.solcast_pv_forecast_predpoved_dnes       # Solcast predpoved dnes, musi mat atribut detailedForecast
+# - sensor.solcast_pv_forecast_predpoved_zostavajuca_dnes # Solcast odhad zostavajucej produkcie dnes
 
 # Integracia menica (napr. Solarman):
 # - sensor.inverter_today_load_consumption          # dnesna spotreba domu v kWh, reset o polnoci
@@ -209,6 +210,7 @@ template:
           - sensor.inverter_today_production
           - sensor.inverter_today_load_consumption
           - sensor.solcast_pv_forecast_predpoved_dnes
+          - sensor.solcast_pv_forecast_predpoved_zostavajuca_dnes
           - sensor.export_optimizer_okte_spotova_cena
           - input_boolean.export_optimizer_allow_battery_early_export
           - input_number.export_optimizer_price_floor
@@ -218,15 +220,6 @@ template:
           - input_number.export_optimizer_export_surplus_threshold_kwh
           - input_number.export_optimizer_min_reserve_soc
     sensor:
-      - name: Export Optimizér - zostavajuca PV predpoved dnes
-        default_entity_id: sensor.export_optimizer_remaining_pv_forecast_today
-        unique_id: export_optimizer_remaining_pv_forecast_today
-        unit_of_measurement: kWh
-        state: >
-          {% set forecast = states('sensor.solcast_pv_forecast_predpoved_dnes') | float(0) %}
-          {% set actual = states('sensor.inverter_today_production') | float(0) %}
-          {{ [forecast - actual, 0] | max | round(2) }}
-
       - name: Export Optimizér - spotreba v solarnom okne dnes
         default_entity_id: sensor.export_optimizer_solar_window_load_today
         unique_id: export_optimizer_solar_window_load_today
@@ -288,7 +281,7 @@ template:
           {% set cap = states('sensor.inverter_battery_capacity') | float(20) %}
           {% set reserve = states('input_number.export_optimizer_min_reserve_soc') | float(40) %}
           {% set remaining_load = states('sensor.export_optimizer_remaining_solar_window_load_estimate') | float(0) %}
-          {% set remaining_pv = states('sensor.export_optimizer_remaining_pv_forecast_today') | float(0) %}
+          {% set remaining_pv = states('sensor.solcast_pv_forecast_predpoved_zostavajuca_dnes') | float(0) %}
           {% set uncovered_load = [remaining_load - remaining_pv, 0] | max %}
           {{ [reserve + (uncovered_load / cap * 100), 95] | min | round(0) }}
 
@@ -301,9 +294,10 @@ template:
           {% set soc = states('sensor.inverter_battery') | float(0) %}
           {% set reserve = states('input_number.export_optimizer_min_reserve_soc') | float(40) %}
           {% set battery_above_reserve = [((soc - reserve) / 100 * cap), 0] | max %}
-          {% set remaining_pv = states('sensor.export_optimizer_remaining_pv_forecast_today') | float(0) %}
+          {% set remaining_bat_charging_cap = [((100 - soc) / 100 * cap), 0] | max %}
+          {% set remaining_pv = states('sensor.solcast_pv_forecast_predpoved_zostavajuca_dnes') | float(0) %}
           {% set remaining_load = states('sensor.export_optimizer_remaining_solar_window_load_estimate') | float(0) %}
-          {{ (battery_above_reserve + remaining_pv - remaining_load) | round(2) }}
+          {{ (remaining_pv - remaining_load - remaining_bat_charging_cap) | round(2) }}
 
       - name: Export Optimizér - odporucany vykon exportu
         default_entity_id: sensor.export_optimizer_recommended_export_power
@@ -324,7 +318,7 @@ template:
             {% set battery_now = cap * soc / 100 %}
             {% set threshold = states('input_number.export_optimizer_export_surplus_threshold_kwh') | float(1) %}
             {% set remaining_load = states('sensor.export_optimizer_remaining_solar_window_load_estimate') | float(0) %}
-            {% set remaining_pv = states('sensor.export_optimizer_remaining_pv_forecast_today') | float(0) %}
+            {% set remaining_pv = states('sensor.solcast_pv_forecast_predpoved_zostavajuca_dnes') | float(0) %}
             {% set min_w = states('input_number.export_optimizer_min_export_power_w') | float(500) %}
             {% set max_w = states('input_number.export_optimizer_max_export_power_w') | float(3000) %}
             {% set battery_export_allowed = is_state('input_boolean.export_optimizer_allow_battery_early_export', 'on') %}
