@@ -88,6 +88,30 @@ Ak sa vaše entity volajú inak, upravte ich v súbore [`Packages/negative_price
 
 Podrobnejší návod je v súbore [Docs/Nastavenie.md](Docs/Nastavenie.md).
 
+## Karta s entitami projektu
+
+Na rýchle vyhľadanie a úpravu všetkých entít vytvorených týmto projektom môžete použiť kartu cez [auto-entities](https://github.com/thomasloven/lovelace-auto-entities). Túto custom kartu je potrebné mať nainštalovanú v Home Assistant, napríklad cez HACS.
+
+```yaml
+type: custom:auto-entities
+card:
+  type: entities
+  title: Export Optimizér
+  show_header_toggle: false
+filter:
+  include:
+    - entity_id: /export_optimizer/
+      sort:
+        method: entity_id
+  exclude:
+    - options: {}
+      entity_id: input_number.export_optimizer_solar_window_start_load_kwh
+    - options: {}
+      entity_id: input_datetime.export_optimizer_solar_window_start_recorded
+```
+
+Karta filtruje entity podľa `export_optimizer` v entity ID. Zámerne skrýva technický záznam rannej spotreby a čas jeho uloženia, ktoré sa nastavujú automaticky.
+
 ## Dôležité ovládacie prvky
 
 | Entita | Význam |
