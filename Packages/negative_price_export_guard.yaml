@@ -1,33 +1,33 @@
-# Home Assistant package: Ochrana exportu pri zapornych spotovych cenach
+# Home Assistant package: Ochrana exportu pri záporných spotových cenách
 #
-# Subor je urceny na vlozenie do adresara packages/ v Home Assistant.
-# Slovenske nazvy entit su zobrazovane nazvy. default_entity_id drzi stabilne entity_id,
-# aby sablony a automatizacie fungovali aj po premenovani nazvu v UI.
+# Súbor je určený na vloženie do adresára packages/ v Home Assistant.
+# Slovenské názvy entít sú zobrazované názvy. default_entity_id drží stabilné entity_id,
+# aby šablóny a automatizácie fungovali aj po premenovaní názvu v UI.
 #
-# Ocakavane entity z integracii:
+# Očakávané entity z integrácií:
 
-# Integracia OKTE DAM:
-# - sensor.okte_ceny_elektriny_prices               # OKTE ceny, musi mat atribut prices
+# Integrácia OKTE DAM:
+# - sensor.okte_ceny_elektriny_prices               # OKTE ceny, musí mať atribút prices
 
-# Integracia Solcast:
-# - sensor.solcast_pv_forecast_predpoved_dnes       # Solcast predpoved dnes, musi mat atribut detailedForecast
-# - sensor.solcast_pv_forecast_predpoved_zostavajuca_dnes # Solcast odhad zostavajucej produkcie dnes
+# Integrácia Solcast:
+# - sensor.solcast_pv_forecast_predpoved_dnes       # Solcast predpoveď dnes, musí mať atribút detailedForecast
+# - sensor.solcast_pv_forecast_predpoved_zostavajuca_dnes # Solcast odhad zostávajúcej produkcie dnes
 
-# Integracia menica (napr. Solarman):
-# - sensor.inverter_today_load_consumption          # dnesna spotreba domu v kWh, reset o polnoci
-# - sensor.inverter_total_energy_export             # celkovy export do siete v kWh, stale rastuci counter
-# - sensor.inverter_today_production                # dnesna PV vyroba v kWh
-# - sensor.inverter_battery                         # SOC baterie v %
-# - sensor.inverter_battery_capacity                # kapacita baterie v kWh, fallback je 20 kWh
-# - sensor.inverter_pv_power                        # aktualny PV vykon vo W
-# - sensor.inverter_load_power                      # aktualna spotreba domu vo W
-# - select.inverter_work_mode                       # rezim menica: Export First / Zero Export To CT
-# - switch.inverter_export_surplus                  # zapnutie exportu PV prebytkov v rezime Zero Export To CT
-# - number.inverter_export_surplus_power            # maximalny vykon exportu do siete vo W
-# - number.solarny_menic_grid_max_export_power      # maximalny povoleny vykon exportu do siete povoleny menicom, pouzivany ako hard limit pre vypocet odporucaneho exportu
+# Integrácia meniča (napr. Solarman):
+# - sensor.inverter_today_load_consumption          # dnešná spotreba domu v kWh, reset o polnoci
+# - sensor.inverter_total_energy_export             # celkový export do siete v kWh, stále rastúci counter
+# - sensor.inverter_today_production                # dnešná PV výroba v kWh
+# - sensor.inverter_battery                         # SOC batérie v %
+# - sensor.inverter_battery_capacity                # kapacita batérie v kWh, fallback je 20 kWh
+# - sensor.inverter_pv_power                        # aktuálny PV výkon vo W
+# - sensor.inverter_load_power                      # aktuálna spotreba domu vo W
+# - select.inverter_work_mode                       # režim meniča: Export First / Zero Export To CT
+# - switch.inverter_export_surplus                  # zapnutie exportu PV prebytkov v režime Zero Export To CT
+# - number.inverter_export_surplus_power            # maximálny výkon exportu do siete vo W
+# - number.solarny_menic_grid_max_export_power      # maximálny povolený výkon exportu do siete povolený meničom, používaný ako hard limit pre výpočet odporúčaného exportu
 
-# Vlastne vytvorena entita cez UI - pomocnik:
-# - input_number.cena_elektriny_nocny_tarif         # konzervativna hodnota energie v EUR/kWh pre vypocet strateneho potencialu, fallback je 0.052 EUR/kWh
+# Vlastná entita vytvorená cez UI - pomocník:
+# - input_number.cena_elektriny_nocny_tarif         # konzervatívna hodnota energie v EUR/kWh pre výpočet strateného potenciálu, fallback je 0.052 EUR/kWh
 
 input_datetime:
   export_optimizer_solar_window_start_recorded:
@@ -63,7 +63,7 @@ input_number:
     initial: 2
 
   export_optimizer_export_surplus_threshold_kwh:
-    name: Export Optimizér - minimalny ocakavany prebytok
+    name: Export Optimizér - minimálny očakávaný prebytok
     min: 0
     max: 10
     step: 0.25
@@ -72,7 +72,7 @@ input_number:
     initial: 1
 
   export_optimizer_price_floor:
-    name: Export Optimizér - minimalna spotova cena pre export
+    name: Export Optimizér - minimálna spotová cena pre export
     min: -50
     max: 50
     step: 0.1
@@ -81,7 +81,7 @@ input_number:
     initial: 0
 
   export_optimizer_min_export_power_w:
-    name: Export Optimizér - minimalny riadeny vykon exportu
+    name: Export Optimizér - minimálny riadený výkon exportu
     min: 0
     max: 5000
     step: 100
@@ -90,7 +90,7 @@ input_number:
     initial: 500
 
   export_optimizer_max_export_power_w:
-    name: Export Optimizér - maximalny riadeny vykon exportu
+    name: Export Optimizér - maximálny riadený výkon exportu
     min: 100
     max: 10000
     step: 100
@@ -108,17 +108,17 @@ input_number:
 
 input_boolean:
   export_optimizer_export_guard_enabled:
-    name: Export Optimizér - ochrana exportu zapnuta
+    name: Export Optimizér - ochrana exportu zapnutá
     icon: mdi:shield-sun
     initial: true
 
   export_optimizer_export_guard_active:
-    name: Export Optimizér - riadeny export aktivny
+    name: Export Optimizér - riadený export aktívny
     icon: mdi:transmission-tower-export
     initial: false
 
   export_optimizer_allow_battery_early_export:
-    name: Export Optimizér - povolit skory export z baterie
+    name: Export Optimizér - povoliť skorý export z batérie
     icon: mdi:battery-arrow-down
     initial: true
 
@@ -127,7 +127,7 @@ template:
       - platform: time
         at: "18:00:00"
     sensor:
-      - name: Export Optimizér - priemer spotreby v solarnom okne 7d
+      - name: Export Optimizér - priemer spotreby v solárnom okne 7d
         default_entity_id: sensor.export_optimizer_solar_window_load_7d_average
         unique_id: export_optimizer_solar_window_load_7d_average
         unit_of_measurement: kWh
@@ -172,7 +172,7 @@ template:
       - platform: state
         entity_id: sensor.okte_ceny_elektriny_prices
     sensor:
-      - name: Export Optimizér OKTE spotova cena
+      - name: Export Optimizér OKTE spotová cena
         default_entity_id: sensor.export_optimizer_okte_spotova_cena
         unique_id: export_optimizer_okte_spot_price
         unit_of_measurement: EUR/MWh
@@ -222,7 +222,7 @@ template:
           - input_number.export_optimizer_export_surplus_threshold_kwh
           - input_number.export_optimizer_min_reserve_soc
     sensor:
-      - name: Export Optimizér - spotreba v solarnom okne dnes
+      - name: Export Optimizér - spotreba v solárnom okne dnes
         default_entity_id: sensor.export_optimizer_solar_window_load_today
         unique_id: export_optimizer_solar_window_load_today
         unit_of_measurement: kWh
@@ -237,7 +237,7 @@ template:
             {{ [current - start, 0] | max | round(2) }}
           {% endif %}
 
-      - name: Export Optimizér - odhad zostavajucej spotreby v solarnom okne
+      - name: Export Optimizér - odhad zostávajúcej spotreby v solárnom okne
         default_entity_id: sensor.export_optimizer_remaining_solar_window_load_estimate
         unique_id: export_optimizer_remaining_solar_window_load_estimate
         unit_of_measurement: kWh
@@ -257,7 +257,7 @@ template:
             {{ [avg + margin - used, minimum_baseload_kwh] | max | round(2) }}
           {% endif %}
 
-      - name: Export Optimizér - minuty zapornej ceny do 18:00
+      - name: Export Optimizér - minúty zápornej ceny do 18:00
         default_entity_id: sensor.export_optimizer_negative_price_minutes_until_18
         unique_id: export_optimizer_negative_price_minutes_until_18
         unit_of_measurement: min
@@ -275,7 +275,7 @@ template:
           {% endfor %}
           {{ ns.minutes }}
 
-      - name: Export Optimizér - cielove SOC baterie
+      - name: Export Optimizér - cieľové SOC batérie
         default_entity_id: sensor.export_optimizer_battery_target_soc
         unique_id: export_optimizer_battery_target_soc
         unit_of_measurement: "%"
@@ -287,7 +287,7 @@ template:
           {% set uncovered_load = [remaining_load - remaining_pv, 0] | max %}
           {{ [reserve + (uncovered_load / cap * 100), 95] | min | round(0) }}
 
-      - name: Export Optimizér - ocakavany prebytok dnes
+      - name: Export Optimizér - očakávaný prebytok dnes
         default_entity_id: sensor.export_optimizer_expected_surplus_today
         unique_id: export_optimizer_expected_surplus_today
         unit_of_measurement: kWh
@@ -300,7 +300,7 @@ template:
           {% set surplus = (remaining_pv - remaining_load - remaining_bat_charging_cap) | round(2) %}
           {{ [surplus, 0] | max }}
 
-      - name: Export Optimizér - odporucany vykon exportu
+      - name: Export Optimizér - odporúčaný výkon exportu
         default_entity_id: sensor.export_optimizer_recommended_export_power
         unique_id: export_optimizer_recommended_export_power
         unit_of_measurement: W
@@ -383,14 +383,14 @@ template:
                 {% endif %}
               {% endfor %}
 
-              {# Approximate daytime load evenly across the remaining solar window. #}
+              {# Približný denný odber rovnomerne rozložený cez zostávajúce solárne okno. #}
               {% set minutes_to_18 = ((as_timestamp(window_end) - as_timestamp(now_local)) / 60) %}
               {% set load_rate = remaining_load / minutes_to_18 if minutes_to_18 > 0 else 0 %}
               {% set load_before_neg = load_rate * mins.before_neg %}
               {% set neg_minutes = ((as_timestamp(neg.end) - as_timestamp(neg.start)) / 60) if neg.start is not none else 0 %}
               {% set load_during_neg = load_rate * neg_minutes %}
 
-              {# Export needed before negative block so battery does not fill and spill during it. #}
+              {# Export potrebný pred záporným blokom, aby sa batéria nenaplnila a neposielala prebytky počas neho. #}
               {% if neg.start is not none and mins.before_neg > 0 %}
                 {% set net_before_neg = pv.before_neg - load_before_neg %}
                 {% set net_during_neg = pv.during_neg - load_during_neg %}
@@ -432,7 +432,7 @@ template:
           - input_boolean.export_optimizer_export_guard_enabled
           - input_boolean.export_optimizer_allow_battery_early_export
     binary_sensor:
-      - name: Export Optimizér - export pozadovany
+      - name: Export Optimizér - export požadovaný
         default_entity_id: binary_sensor.export_optimizer_export_wanted
         unique_id: export_optimizer_export_wanted
         state: >
@@ -460,7 +460,7 @@ template:
       - platform: state
         entity_id: sensor.inverter_total_energy_export
     sensor:
-      - name: Export Optimizér - energia exportovana pocas zapornej ceny
+      - name: Export Optimizér - energia exportovaná počas zápornej ceny
         default_entity_id: sensor.export_optimizer_exported_energy_during_negative_spot_price
         unique_id: export_optimizer_exported_energy_during_negative_spot_price
         unit_of_measurement: kWh
@@ -480,7 +480,7 @@ template:
         attributes:
           last_export_kwh: "{{ current_export }}"
 
-      - name: Export Optimizér - energia exportovana automatizaciou
+      - name: Export Optimizér - energia exportovaná automatizáciou
         default_entity_id: sensor.export_optimizer_exported_energy_by_automation
         unique_id: export_optimizer_exported_energy_by_automation
         unit_of_measurement: kWh
@@ -500,7 +500,7 @@ template:
         attributes:
           last_export_kwh: "{{ current_export }}"
 
-      - name: Export Optimizér - uspora automatizovaneho exportu
+      - name: Export Optimizér - úspora automatizovaného exportu
         default_entity_id: sensor.export_optimizer_automation_export_savings
         unique_id: export_optimizer_automation_export_savings
         unit_of_measurement: EUR
@@ -522,7 +522,7 @@ template:
           last_export_kwh: "{{ current_export }}"
           current_buyout_price_eur_kwh: "{{ states('sensor.cena_vykupu_elektriny') | float(0) }}"
 
-      - name: Export Optimizér - strateny potencial pri zapornej cene
+      - name: Export Optimizér - stratený potenciál pri zápornej cene
         default_entity_id: sensor.export_optimizer_negative_price_wasted_potential
         unique_id: export_optimizer_negative_price_wasted_potential
         unit_of_measurement: EUR
@@ -545,9 +545,9 @@ template:
           hypothetical_buyout_price_eur_kwh: "{{ states('input_number.cena_elektriny_nocny_tarif') | float(0.052) * 0.88 }}"
 
 automation:
-  - alias: Export Optimizér Pozicovna - zaznamenat zaciatok solarneho okna
+  - alias: Export Optimizér Požičovňa - zaznamenať začiatok solárneho okna
     id: export_optimizer_pozicovna_record_solar_window_start
-    description: Zapise spotrebu domu o 07:00, aby sa dala vypocitat spotreba iba pocas solarneho okna.
+    description: Zapíše spotrebu domu o 07:00, aby sa dala vypočítať spotreba iba počas solárneho okna.
     mode: single
     trigger:
       - platform: time
@@ -564,9 +564,9 @@ automation:
         data:
           datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
 
-  - alias: Export Optimizér Pozicovna - export iba ked je bezpecny
+  - alias: Export Optimizér Požičovňa - export iba keď je bezpečný
     id: export_optimizer_pozicovna_export_only_when_safe
-    description: Prepina menic do Export First iba vtedy, ked treba vytvorit miesto v baterii pred zapornou spotovou cenou.
+    description: Prepína menič do Export First iba vtedy, keď treba vytvoriť miesto v batérii pred zápornou spotovou cenou.
     mode: single
     trigger:
       - platform: state
