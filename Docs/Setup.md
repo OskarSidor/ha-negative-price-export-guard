@@ -24,13 +24,14 @@ Recommended integration:
 
 - [Solcast Solar](https://github.com/BJReplay/ha-solcast-solar)
 
-The package expects a daily forecast entity like:
+The package expects two Solcast entities:
 
 ```yaml
 sensor.solcast_pv_forecast_predpoved_dnes
+sensor.solcast_pv_forecast_predpoved_zostavajuca_dnes
 ```
 
-The entity should expose a `detailedForecast` attribute. The package uses that detailed forecast to estimate PV production before and during the next price window below your configured floor.
+The first one must expose `detailedForecast`; the second one should represent remaining forecasted production for today in kWh. The package uses the detailed forecast for timing around the next negative-price window and the remaining-production sensor for whole-day surplus and battery-capacity calculations.
 
 ### Inverter Integration
 
@@ -40,7 +41,7 @@ Recommended Solarman integration:
 
 - [ha-solarman](https://github.com/davidrapan/ha-solarman)
 
-At minimum, Home Assistant must be able to read battery SOC, PV power, house load power, daily PV production, daily house load consumption, total grid export, and it must be able to change inverter work mode and set the grid export power limit.
+At minimum, Home Assistant must be able to read battery SOC, PV power, house load power, daily PV production, daily house load consumption, total grid export, current export settings, and it must be able to change inverter work mode and set the grid export power limit.
 
 ## 2. Enable Home Assistant Packages
 
@@ -97,7 +98,8 @@ Open `negative_price_export_guard.yaml` and check every entity in the expected-e
 | Purpose | Default entity |
 |---|---|
 | OKTE prices | `sensor.okte_ceny_elektriny_prices` |
-| Solcast forecast today | `sensor.solcast_pv_forecast_predpoved_dnes` |
+| Solcast forecast today with detailed forecast | `sensor.solcast_pv_forecast_predpoved_dnes` |
+| Solcast remaining production today | `sensor.solcast_pv_forecast_predpoved_zostavajuca_dnes` |
 | Daily house load consumption | `sensor.inverter_today_load_consumption` |
 | Total grid export | `sensor.inverter_total_energy_export` |
 | Daily PV production | `sensor.inverter_today_production` |
@@ -106,7 +108,9 @@ Open `negative_price_export_guard.yaml` and check every entity in the expected-e
 | Current PV power | `sensor.inverter_pv_power` |
 | Current load power | `sensor.inverter_load_power` |
 | Inverter mode select | `select.inverter_work_mode` |
+| PV surplus export switch | `switch.inverter_export_surplus` |
 | Export power limit | `number.inverter_export_surplus_power` |
+| Maximum inverter/grid export limit | `number.solarny_menic_grid_max_export_power` |
 | Energy value helper | `input_number.cena_elektriny_nocny_tarif` |
 
 If your entities use different names, replace all occurrences in the package. Do not try to put entity IDs into `input_text` helpers for triggers; Home Assistant triggers need real entity IDs in the YAML.
@@ -120,9 +124,11 @@ The package assumes:
 | `sensor.inverter_pv_power` | W |
 | `sensor.inverter_load_power` | W |
 | `number.inverter_export_surplus_power` | W |
+| `number.solarny_menic_grid_max_export_power` | W |
 | `sensor.inverter_today_load_consumption` | kWh |
 | `sensor.inverter_today_production` | kWh |
 | `sensor.inverter_total_energy_export` | kWh |
+| `sensor.solcast_pv_forecast_predpoved_zostavajuca_dnes` | kWh |
 | `sensor.inverter_battery` | % |
 | `sensor.inverter_battery_capacity` | kWh |
 
@@ -149,25 +155,28 @@ Settings -> Developer Tools -> YAML -> Check configuration
 
 Do not restart until this passes. Common causes of validation errors are wrong entity IDs, duplicated YAML keys, indentation issues, invalid options under YAML helpers, and inverter mode option names that do not match your integration.
 
-## 8. Restart And Verify New Entities
+## 8. Restart And Verify Entities
 
-After restart, search for entities starting with:
+After restart, verify the external entities above and search for package-created entities starting with:
 
 ```text
 export_optimizer_
 ```
 
-The most important ones are:
+The most important created entities are:
 
 ```text
 sensor.export_optimizer_okte_spotova_cena
 sensor.export_optimizer_recommended_export_power
+sensor.export_optimizer_expected_surplus_today
 binary_sensor.export_optimizer_export_wanted
 input_boolean.export_optimizer_export_guard_enabled
 input_boolean.export_optimizer_allow_battery_early_export
 input_boolean.export_optimizer_export_guard_active
 input_number.export_optimizer_typical_idle_power_w
 ```
+
+The old package-created sensor `sensor.export_optimizer_remaining_pv_forecast_today` is no longer used. The package now uses the Solcast remaining-production sensor directly.
 
 ## 9. First-Day Behavior And Learning
 
@@ -191,7 +200,17 @@ Start conservatively:
 
 The typical idle power should include the usual minimum house load and inverter self-consumption during the remaining solar window. It prevents the remaining-load estimate from falling unrealistically to zero too early in the day.
 
-## 11. Battery-Saving Mode
+## 11. Expected Surplus Logic
+
+`sensor.export_optimizer_expected_surplus_today` now estimates only energy that is likely to be truly surplus after:
+
+- remaining Solcast production,
+- estimated remaining solar-window load,
+- remaining battery charging capacity.
+
+This means the sensor may stay at `0` even on sunny days if the battery still has enough empty capacity to absorb the expected PV production.
+
+## 12. Battery-Saving Mode
 
 If you turn off:
 
@@ -205,18 +224,31 @@ then the recommended export power is capped to the current live PV surplus:
 PV power - house load power - 200 W
 ```
 
-This reduces battery cycling, but it may not create enough headroom before a long or strong negative-price period.
+In this mode, the package does not force `input_number.export_optimizer_min_export_power_w`, because doing so could discharge the battery when live PV surplus is small.
 
-## 12. How To Tune
+## 13. Full-Battery Anti-Curtailment
+
+When the battery is above 99%, `switch.inverter_export_surplus` is on, the inverter is in `Zero Export To CT`, and strategic export is not currently wanted, the package sets:
+
+```text
+number.inverter_export_surplus_power = min(
+  number.solarny_menic_grid_max_export_power,
+  input_number.export_optimizer_max_export_power_w
+)
+```
+
+This helps avoid PV curtailment when the battery is full. This branch respects `input_boolean.export_optimizer_export_guard_enabled` and clears `input_boolean.export_optimizer_export_guard_active` if needed.
+
+## 14. How To Tune
 
 ### If Energy Still Exports During Negative Prices
 
 Try these in order:
 
-- Increase `input_number.export_optimizer_max_export_power_w` if the inverter is allowed to export more.
-- Increase `input_number.export_optimizer_export_surplus_threshold_kwh` if you want the algorithm to create more buffer before the negative window.
+- Increase `input_number.export_optimizer_max_export_power_w` if the inverter and grid connection allow it.
+- Increase `input_number.export_optimizer_export_surplus_threshold_kwh` if you want the algorithm to react only to larger expected surpluses.
 - Enable `input_boolean.export_optimizer_allow_battery_early_export` if battery-saving mode is too restrictive.
-- Check whether Solcast is underestimating production or whether your battery capacity/SOC entities are inaccurate.
+- Check whether Solcast is underestimating production or whether battery capacity/SOC entities are inaccurate.
 
 Do not blindly increase `input_number.export_optimizer_consumption_margin_kwh`: a higher consumption margin tells the algorithm to expect more local use, which can reduce early export.
 
@@ -234,37 +266,19 @@ or disable:
 input_boolean.export_optimizer_allow_battery_early_export
 ```
 
-### If The Remaining Load Estimate Falls Too Low
-
-Increase:
-
-```text
-input_number.export_optimizer_typical_idle_power_w
-```
-
-This is useful when the learned daily consumption is mostly already used, but the house still has a predictable base load until 18:00.
-
-### If The Automation Starts Too Often
-
-Increase:
-
-```text
-input_number.export_optimizer_export_surplus_threshold_kwh
-```
-
-This makes the automation ignore smaller expected surpluses.
-
 ### If PV Is Curtailed When The Battery Is Full
 
-Increase:
+Check these first:
 
 ```text
+switch.inverter_export_surplus
+number.solarny_menic_grid_max_export_power
 input_number.export_optimizer_max_export_power_w
 ```
 
-The automation includes logic to set the export limit to the maximum value when the battery is full and the inverter is in `Zero Export To CT`, as long as the spot price is non-negative.
+Then increase `input_number.export_optimizer_max_export_power_w` if your inverter and grid connection allow it.
 
-## 13. Suggested Dashboard
+## 15. Suggested Dashboard
 
 A simple debug dashboard should include:
 
@@ -280,16 +294,19 @@ sensor.export_optimizer_remaining_solar_window_load_estimate
 sensor.export_optimizer_expected_surplus_today
 sensor.export_optimizer_battery_target_soc
 input_number.export_optimizer_typical_idle_power_w
+switch.inverter_export_surplus
 number.inverter_export_surplus_power
+number.solarny_menic_grid_max_export_power
 select.inverter_work_mode
 sensor.inverter_battery
 sensor.inverter_pv_power
 sensor.inverter_load_power
+sensor.solcast_pv_forecast_predpoved_zostavajuca_dnes
 ```
 
 This makes it much easier to see why the automation is or is not active.
 
-## 14. Accounting Sensors
+## 16. Accounting Sensors
 
 The package creates cumulative sensors for tracking results:
 
@@ -302,7 +319,7 @@ The package creates cumulative sensors for tracking results:
 
 These are cumulative sensors. For daily values, use graph/statistics cards that calculate a daily difference.
 
-## 15. Performance Notes
+## 17. Performance Notes
 
 The package uses trigger-based template sensors on purpose. Avoid turning templates containing these into regular triggerless template sensors:
 
@@ -315,7 +332,7 @@ state_attr(... detailedForecast ...)
 
 Those functions and loops can cause frequent template recalculation and high CPU usage on smaller Home Assistant systems.
 
-## 16. Safety Checklist
+## 18. Safety Checklist
 
 Before leaving the automation enabled unattended:
 
@@ -323,11 +340,12 @@ Before leaving the automation enabled unattended:
 - Confirm export power limits are reasonable for your inverter and grid connection.
 - Confirm negative spot-price periods force the inverter back to `Zero Export To CT`.
 - Confirm `sensor.export_optimizer_okte_spotova_cena` matches the real current OKTE period.
+- Confirm the Solcast remaining-production sensor has the expected unit and value.
 - Confirm the battery reserve is high enough for your household.
 - Start with a low max export power and increase gradually.
 
-## 17. Adapting To Other Countries Or Providers
+## 19. Adapting To Other Countries Or Providers
 
-The idea is not Slovakia-specific, but the price source and supplier rules are. To adapt it elsewhere, replace the OKTE price entity, price parsing if needed, the value calculation, inverter mode names, and the solar window if local PV production differs.
+The idea is not Slovakia-specific, but the price source and supplier rules are. To adapt it elsewhere, replace the OKTE price entity, price parsing if needed, the value calculation, inverter mode names, export-control entities, and the solar window if local PV production differs.
 
-The core concept remains the same: create battery headroom before negative-price windows, avoid strategic export during negative prices, and track whether the tuning is working.
+The core concept remains the same: create battery headroom before negative-price windows, avoid strategic export during negative prices, prevent unnecessary curtailment when useful, and track whether the tuning is working.
