@@ -167,6 +167,9 @@ The most important created entities are:
 
 ```text
 sensor.export_optimizer_okte_spotova_cena
+sensor.export_optimizer_solar_window_load_7d_average
+sensor.export_optimizer_expected_load_power
+sensor.export_optimizer_remaining_solar_window_load_estimate
 sensor.export_optimizer_recommended_export_power
 sensor.export_optimizer_expected_surplus_today
 binary_sensor.export_optimizer_export_wanted
@@ -180,11 +183,48 @@ The old package-created sensor `sensor.export_optimizer_remaining_pv_forecast_to
 
 ## 9. First-Day Behavior And Learning
 
-The package records the house load counter at 07:00 and evaluates the 07:00-18:00 consumption window at 18:00. The sensor `sensor.export_optimizer_solar_window_load_7d_average` stores the last seven daily samples in the `past_consumption` attribute and uses them for the average.
+The package records the house-load counter at 07:00. During the 07:00-18:00 solar window, it stores one load delta every 15 minutes. At 18:00, it saves the completed daily curve and keeps the last seven completed daily curves.
 
-On the first day, the average has little or no history. Expect the estimate to improve after several sunny days.
+`sensor.export_optimizer_solar_window_load_7d_average` has these learning attributes:
 
-## 10. Recommended Initial Tuning
+| Attribute | Meaning |
+|---|---|
+| `past_consumption` | Last 7 total solar-window consumption samples |
+| `today_load_curve` | Today's already measured 15-minute intervals |
+| `past_load_curves` | Last 7 completed daily 15-minute curves |
+| `load_curve` | Average 15-minute curve used by the optimizer |
+| `last_interval_total_kwh` | Internal counter snapshot for the next interval delta |
+| `current_interval_index` | Current 15-minute slot in the 07:00-18:00 window |
+
+The `load_curve` entries contain:
+
+```yaml
+index: 0
+start: "07:00:00"
+end: "07:15:00"
+consumption_kwh: 0.12
+power_w: 480
+samples: 4
+```
+
+`consumption_kwh` is the expected energy use in that 15-minute interval. `power_w` is the same value converted to average watts for easier dashboards and calculations.
+
+On the first day, there is little or no history. The package falls back to the daily average spread across the solar window. The curve becomes better after every completed day and should be most useful after about a week.
+
+## 10. Load-Curve Based Planning
+
+The package no longer assumes that house load is constant through the solar window. These sensors use the 15-minute load curve:
+
+| Entity | How it uses the curve |
+|---|---|
+| `sensor.export_optimizer_expected_load_power` | Shows expected house-load power for the current 15-minute slot |
+| `sensor.export_optimizer_remaining_solar_window_load_estimate` | Sums the remaining intervals from `load_curve` and applies the safety margin |
+| `sensor.export_optimizer_expected_surplus_today` | Uses the improved remaining-load estimate before calculating surplus |
+| `sensor.export_optimizer_recommended_export_power` | Uses the improved load estimate when deciding whether to export before a negative-price block |
+
+This is especially useful if the house has predictable daytime peaks, such as cooking, water heating, heat pump cycles, or EV/PHEV charging that sometimes happens inside the solar window.
+
+## 11. Recommended Initial Tuning
 
 Start conservatively:
 
@@ -200,17 +240,17 @@ Start conservatively:
 
 The typical idle power should include the usual minimum house load and inverter self-consumption during the remaining solar window. It prevents the remaining-load estimate from falling unrealistically to zero too early in the day.
 
-## 11. Expected Surplus Logic
+## 12. Expected Surplus Logic
 
-`sensor.export_optimizer_expected_surplus_today` now estimates only energy that is likely to be truly surplus after:
+`sensor.export_optimizer_expected_surplus_today` estimates only energy that is likely to be truly surplus after:
 
 - remaining Solcast production,
-- estimated remaining solar-window load,
+- estimated remaining solar-window load from the 15-minute curve,
 - remaining battery charging capacity.
 
 This means the sensor may stay at `0` even on sunny days if the battery still has enough empty capacity to absorb the expected PV production.
 
-## 12. Battery-Saving Mode
+## 13. Battery-Saving Mode
 
 If you turn off:
 
@@ -226,7 +266,7 @@ PV power - house load power - 200 W
 
 In this mode, the package does not force `input_number.export_optimizer_min_export_power_w`, because doing so could discharge the battery when live PV surplus is small.
 
-## 13. Full-Battery Anti-Curtailment
+## 14. Full-Battery Anti-Curtailment
 
 When the battery is above 99%, `switch.inverter_export_surplus` is on, the inverter is in `Zero Export To CT`, and strategic export is not currently wanted, the package sets:
 
@@ -239,16 +279,17 @@ number.inverter_export_surplus_power = min(
 
 This helps avoid PV curtailment when the battery is full. This branch respects `input_boolean.export_optimizer_export_guard_enabled` and clears `input_boolean.export_optimizer_export_guard_active` if needed.
 
-## 14. How To Tune
+## 15. How To Tune
 
 ### If Energy Still Exports During Negative Prices
 
 Try these in order:
 
+- Check whether `sensor.export_optimizer_expected_load_power` looks realistic for the current time of day.
 - Increase `input_number.export_optimizer_max_export_power_w` if the inverter and grid connection allow it.
-- Increase `input_number.export_optimizer_export_surplus_threshold_kwh` if you want the algorithm to react only to larger expected surpluses.
 - Enable `input_boolean.export_optimizer_allow_battery_early_export` if battery-saving mode is too restrictive.
 - Check whether Solcast is underestimating production or whether battery capacity/SOC entities are inaccurate.
+- Increase `input_number.export_optimizer_export_surplus_threshold_kwh` only if you want the algorithm to react to larger expected surpluses.
 
 Do not blindly increase `input_number.export_optimizer_consumption_margin_kwh`: a higher consumption margin tells the algorithm to expect more local use, which can reduce early export.
 
@@ -278,19 +319,21 @@ input_number.export_optimizer_max_export_power_w
 
 Then increase `input_number.export_optimizer_max_export_power_w` if your inverter and grid connection allow it.
 
-## 15. Suggested Dashboard
+## 16. Suggested Dashboard
 
 A simple debug dashboard should include:
 
 ```text
 sensor.export_optimizer_okte_spotova_cena
 sensor.export_optimizer_negative_price_minutes_until_18
+sensor.export_optimizer_solar_window_load_7d_average
+sensor.export_optimizer_expected_load_power
+sensor.export_optimizer_remaining_solar_window_load_estimate
 sensor.export_optimizer_recommended_export_power
 binary_sensor.export_optimizer_export_wanted
 input_boolean.export_optimizer_export_guard_enabled
 input_boolean.export_optimizer_allow_battery_early_export
 input_boolean.export_optimizer_export_guard_active
-sensor.export_optimizer_remaining_solar_window_load_estimate
 sensor.export_optimizer_expected_surplus_today
 sensor.export_optimizer_battery_target_soc
 input_number.export_optimizer_typical_idle_power_w
@@ -303,8 +346,6 @@ sensor.inverter_pv_power
 sensor.inverter_load_power
 sensor.solcast_pv_forecast_predpoved_zostavajuca_dnes
 ```
-
-This makes it much easier to see why the automation is or is not active.
 
 For an easier setup, use [auto-entities](https://github.com/thomasloven/lovelace-auto-entities) to automatically list all entities created by this project. The `custom:auto-entities` card must be installed in Home Assistant, for example through HACS.
 
@@ -328,7 +369,7 @@ filter:
 
 The card filters entities by `export_optimizer` in the entity ID and hides the two technical morning-record helpers that users normally do not need to edit.
 
-## 16. Accounting Sensors
+## 17. Accounting Sensors
 
 The package creates cumulative sensors for tracking results:
 
@@ -341,7 +382,7 @@ The package creates cumulative sensors for tracking results:
 
 These are cumulative sensors. For daily values, use graph/statistics cards that calculate a daily difference.
 
-## 17. Performance Notes
+## 18. Performance Notes
 
 The package uses trigger-based template sensors on purpose. Avoid turning templates containing these into regular triggerless template sensors:
 
@@ -352,9 +393,9 @@ state_attr(... prices ...)
 state_attr(... detailedForecast ...)
 ```
 
-Those functions and loops can cause frequent template recalculation and high CPU usage on smaller Home Assistant systems.
+The load curve is also trigger-based and updates every 15 minutes. That is intentional: it stores useful history without recalculating large templates every minute.
 
-## 18. Safety Checklist
+## 19. Safety Checklist
 
 Before leaving the automation enabled unattended:
 
@@ -363,11 +404,12 @@ Before leaving the automation enabled unattended:
 - Confirm negative spot-price periods force the inverter back to `Zero Export To CT`.
 - Confirm `sensor.export_optimizer_okte_spotova_cena` matches the real current OKTE period.
 - Confirm the Solcast remaining-production sensor has the expected unit and value.
+- Confirm `sensor.export_optimizer_expected_load_power` is plausible after a few days of learning.
 - Confirm the battery reserve is high enough for your household.
 - Start with a low max export power and increase gradually.
 
-## 19. Adapting To Other Countries Or Providers
+## 20. Adapting To Other Countries Or Providers
 
 The idea is not Slovakia-specific, but the price source and supplier rules are. To adapt it elsewhere, replace the OKTE price entity, price parsing if needed, the value calculation, inverter mode names, export-control entities, and the solar window if local PV production differs.
 
-The core concept remains the same: create battery headroom before negative-price windows, avoid strategic export during negative prices, prevent unnecessary curtailment when useful, and track whether the tuning is working.
+The core concept remains the same: create battery headroom before negative-price windows, avoid strategic export during negative prices, prevent unnecessary curtailment when useful, learn the home's daytime load curve, and track whether the tuning is working.
