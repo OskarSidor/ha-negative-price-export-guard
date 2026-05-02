@@ -1,6 +1,6 @@
 # Home Assistant: ochrana exportu pri záporných spotových cenách
 
-Automatizácia pre Home Assistant, ktorá pomáha majiteľom fotovoltiky obmedziť zbytočný export elektriny do siete počas záporných spotových cien. Projekt vznikol pre slovenské podmienky, hlavne pre prípady, keď dodávateľ nepočíta elektrinu dodanú do virtuálnej batérie alebo podobnej služby počas záporných cien.
+Automatizačný balík pre Home Assistant, ktorý pomáha majiteľom fotovoltiky obmedziť zbytočný export elektriny do siete počas záporných spotových cien. Projekt vznikol pre slovenské podmienky, hlavne pre prípady, keď dodávateľ nepočíta elektrinu dodanú do virtuálnej batérie alebo podobnej služby počas záporných cien.
 
 Typický príklad: počas slnečného dňa sa batéria nabije doplna, fotovoltika má prebytok, ale OKTE spotová cena je záporná. Ak sa elektrina vtedy odošle do siete, môže mať nulovú hodnotu pre virtuálnu batériu. Tento balík sa snaží vytvoriť miesto v batérii ešte pred záporným cenovým oknom a zároveň pri plnej batérii zabrániť zbytočnému obmedzovaniu PV výroby.
 
@@ -10,12 +10,13 @@ English version: [README.en.md](README.en.md)
 
 - Počíta aktuálnu OKTE spotovú cenu z atribútu `prices`, nie iba zo stavu senzora.
 - Sleduje budúce cenové obdobia pod nastavenou hranicou do 18:00.
-- Učí sa spotrebu domu v solárnom okne 07:00-18:00 z posledných dní.
-- Používa Solcast dennú predpoveď, detailnú predpoveď a novú entitu zostávajúcej výroby dnes.
-- Odhaduje zostávajúcu spotrebu domu vrátane minimálnej základnej spotreby.
-- Počíta očakávaný prebytok až po zohľadnení zostávajúcej kapacity batérie na nabíjanie.
+- Učí sa spotrebu domu v solárnom okne 07:00-18:00 z posledných 7 dní.
+- Vytvára 15-minútovú krivku spotreby domu a používa ju namiesto rovnomerného priemeru počas dňa.
+- Vystavuje aktuálny očakávaný výkon spotreby cez `sensor.export_optimizer_expected_load_power`.
+- Používa Solcast dennú predpoveď, detailnú predpoveď a entitu zostávajúcej výroby dnes.
+- Počíta očakávaný prebytok po zohľadnení zostávajúcej spotreby a kapacity batérie.
 - Prepína menič do `Export First` iba vtedy, keď treba strategicky vytvoriť miesto v batérii.
-- Pri vypnutom skorom exporte z batérie obmedzí výkon len na aktuálny PV prebytok, bez vynútenia minimálneho exportného výkonu.
+- Pri vypnutom skorom exporte z batérie obmedzí výkon len na aktuálny PV prebytok.
 - Pri plnej batérii v režime `Zero Export To CT` nastaví bezpečný exportný limit, aby menič zbytočne neobmedzoval PV výrobu.
 - Počíta energiu exportovanú počas záporných cien, energiu exportovanú automatizáciou, odhad úspory a stratený potenciál.
 
@@ -65,11 +66,13 @@ Ak sa vaše entity volajú inak, upravte ich v súbore [`Packages/negative_price
 ## Ako logika funguje
 
 1. O 07:00 uloží stav denného počítadla spotreby domu.
-2. O 18:00 uloží spotrebu za solárne okno a udržiava posledných 7 vzoriek v atribúte `past_consumption`.
-3. Každých 10 minút a pri zmene dôležitých entít prepočíta zostávajúcu spotrebu, cieľové SOC, očakávaný prebytok a odporúčaný exportný výkon.
-4. Ak príde cena pod nastavenou hranicou, menič sa vráti do `Zero Export To CT`.
-5. Ak je potrebné vytvoriť miesto pred budúcim záporným oknom, automatizácia nastaví exportný výkon a prepne menič do `Export First`.
-6. Ak je batéria plná, export prebytkov je zapnutý a strategický export nie je požadovaný, nastaví sa exportný limit na menšiu hodnotu z `input_number.export_optimizer_max_export_power_w` a `number.solarny_menic_grid_max_export_power`.
+2. Každých 15 minút počas okna 07:00-18:00 uloží prírastok spotreby za posledný interval.
+3. O 18:00 uloží dennú krivku a udržiava posledných 7 denných kriviek v atribúte `past_load_curves`.
+4. Z týchto kriviek počíta atribút `load_curve`, teda očakávanú spotrebu a výkon pre každý 15-minútový interval.
+5. Každých 10 minút a pri zmene dôležitých entít prepočíta zostávajúcu spotrebu, cieľové SOC, očakávaný prebytok a odporúčaný exportný výkon.
+6. Ak prichádza cena pod nastavenou hranicou, menič sa vráti do `Zero Export To CT`.
+7. Ak je potrebné vytvoriť miesto pred budúcim záporným oknom, automatizácia nastaví exportný výkon a prepne menič do `Export First`.
+8. Ak je batéria plná, export prebytkov je zapnutý a strategický export nie je požadovaný, exportný limit sa zvýši tak, aby sa znížilo obmedzovanie PV výroby.
 
 ## Inštalácia
 
@@ -82,7 +85,7 @@ Ak sa vaše entity volajú inak, upravte ich v súbore [`Packages/negative_price
 
 2. Skopírujte `Packages/negative_price_export_guard.yaml` do `config/packages/negative_price_export_guard.yaml`.
 3. Skontrolujte a upravte entity podľa svojej inštalácie.
-4. V Home Assistant spustite `Nastavenia -> Vývojárske nástroje -> YAML -> Skontrolovať konfiguráciu`.
+4. Spustite `Nastavenia -> Vývojárske nástroje -> YAML -> Skontrolovať konfiguráciu`.
 5. Ak je konfigurácia v poriadku, reštartujte Home Assistant.
 6. Po reštarte skontrolujte nové entity začínajúce na `export_optimizer_`.
 
@@ -126,34 +129,38 @@ Karta filtruje entity podľa `export_optimizer` v entity ID. Zámerne skrýva te
 | `input_number.export_optimizer_max_export_power_w` | Horný limit riadeného exportu a limit pri plnej batérii |
 | `input_number.export_optimizer_price_floor` | Cena, od ktorej sa export považuje za bezpečný |
 
-## Odporúčané úvodné nastavenie
-
-| Nastavenie | Odporúčaná hodnota |
-|---|---:|
-| Minimálna rezerva batérie | `40 %` |
-| Rezerva odhadu spotreby | `2 kWh` |
-| Typická minimálna spotreba domu | `200-500 W` podľa domu a meniča |
-| Minimálny očakávaný prebytok | `1 kWh` |
-| Minimálny riadený export | `500 W` |
-| Maximálny riadený export | `3000 W` |
-| Minimálna spotová cena pre export | `0 EUR/MWh` |
-
 ## Čo sledovať po spustení
 
 | Entita | Čo znamená |
 |---|---|
 | `sensor.export_optimizer_okte_spotova_cena` | Aktuálna spotová cena vypočítaná z OKTE atribútov |
 | `sensor.export_optimizer_negative_price_minutes_until_18` | Koľko minút pod cenovou hranicou zostáva do 18:00 |
+| `sensor.export_optimizer_solar_window_load_7d_average` | Priemer spotreby v solárnom okne a atribúty krivky spotreby |
+| `sensor.export_optimizer_expected_load_power` | Očakávaný výkon spotreby domu pre aktuálny 15-minútový interval |
+| `sensor.export_optimizer_remaining_solar_window_load_estimate` | Odhad zostávajúcej spotreby podľa 15-minútovej krivky |
 | `sensor.export_optimizer_recommended_export_power` | Odporúčaný výkon strategického exportu |
 | `binary_sensor.export_optimizer_export_wanted` | Či má automatizácia prepnúť do `Export First` |
 | `input_boolean.export_optimizer_export_guard_active` | Či automatizácia práve riadi export |
-| `sensor.export_optimizer_remaining_solar_window_load_estimate` | Odhad zostávajúcej spotreby |
 | `sensor.export_optimizer_expected_surplus_today` | Prebytok po odpočítaní spotreby a zostávajúcej kapacity batérie |
 | `sensor.export_optimizer_battery_target_soc` | Cieľová hranica SOC podľa odhadu spotreby a výroby |
 | `sensor.export_optimizer_exported_energy_by_automation` | Energia exportovaná automatizáciou |
 | `sensor.export_optimizer_exported_energy_during_negative_spot_price` | Energia exportovaná počas záporných cien |
 | `sensor.export_optimizer_automation_export_savings` | Odhad zachránenej hodnoty |
 | `sensor.export_optimizer_negative_price_wasted_potential` | Odhad stratenej hodnoty pri záporných cenách |
+
+## Krivka spotreby
+
+`sensor.export_optimizer_solar_window_load_7d_average` má okrem stavu aj dôležité atribúty:
+
+| Atribút | Význam |
+|---|---|
+| `past_consumption` | Posledných 7 denných súčtov spotreby v solárnom okne |
+| `today_load_curve` | Dnešné zatiaľ namerané 15-minútové intervaly |
+| `past_load_curves` | Posledných 7 dokončených denných kriviek |
+| `load_curve` | Priemerná 15-minútová krivka používaná na výpočet zostávajúcej spotreby |
+| `current_interval_index` | Aktuálny interval v okne 07:00-18:00 |
+
+Prvý deň bude krivka používať fallback z denného priemeru. Po každom ďalšom dni bude presnejšia, najmä pri pravidelnej dennej spotrebe.
 
 ## Časté problémy
 
@@ -177,7 +184,7 @@ Zvýšte `input_number.export_optimizer_min_reserve_soc` alebo vypnite `input_bo
 
 ### Home Assistant má vysoké CPU využitie
 
-Nemeňte trigger-based template senzory s `now()`, `today_at()`, `prices` alebo `detailedForecast` na bežné template senzory bez triggerov.
+Nemeňte trigger-based template senzory s `now()`, `today_at()`, `prices` alebo `detailedForecast` na bežné template senzory bez triggerov. Nová krivka spotreby sa prepočítava v 15-minútovom triggeri, aby zbytočne nezaťažovala systém.
 
 ## Screenshoty na doplnenie
 
@@ -191,9 +198,13 @@ Nemeňte trigger-based template senzory s `now()`, `today_at()`, `prices` alebo 
 
 ### 3. Stav pomocných senzorov automatizácie
 
-<!-- TODO: Sem doplniť screenshot dashboardu s entitami export_optimizer_recommended_export_power, export_optimizer_export_wanted, export_optimizer_remaining_solar_window_load_estimate a export_optimizer_negative_price_minutes_until_18. -->
+<!-- TODO: Sem doplniť screenshot dashboardu s entitami export_optimizer_recommended_export_power, export_optimizer_export_wanted, export_optimizer_remaining_solar_window_load_estimate, export_optimizer_expected_load_power a export_optimizer_negative_price_minutes_until_18. -->
 
-### 4. Úspora a stratený potenciál
+### 4. Krivka spotreby domu
+
+<!-- TODO: Sem doplniť screenshot atribútu load_curve alebo grafu očakávanej 15-minútovej spotreby počas solárneho okna. -->
+
+### 5. Úspora a stratený potenciál
 
 <!-- TODO: Sem doplniť screenshot grafu kumulatívnej úspory a strateného potenciálu. -->
 
