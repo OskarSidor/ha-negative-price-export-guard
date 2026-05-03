@@ -1,6 +1,6 @@
 {
   "name": "Negative Price Export Guard",
   "render_readme": true,
-  "domains": ["sensor", "binary_sensor", "number", "switch"],
+  "domains": ["sensor", "binary_sensor", "number", "switch", "time"],
   "homeassistant": "2025.1.0"
 }

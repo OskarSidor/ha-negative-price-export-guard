@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Negative Price Export Guard",
-        "description": "Select the Home Assistant entities used by the optimizer. The integration only reads and calculates values in this first version; inverter control will be added after the calculation layer is stable.",
+        "description": "Select the Home Assistant entities used by the optimizer. Tuning values are created as Home Assistant entities and can be adjusted later from the UI.",
         "data": {
           "name": "Name",
           "okte_price_sensor": "OKTE price sensor",
@@ -20,18 +20,7 @@
           "export_surplus_switch": "PV surplus export switch",
           "export_surplus_power_number": "Export surplus power number",
           "grid_max_export_power_number": "Maximum grid export power number",
-          "night_tariff_number": "Night tariff number",
-          "solar_window_start": "Solar window start",
-          "solar_window_end": "Solar window end",
-          "min_reserve_soc": "Minimum battery reserve SOC",
-          "consumption_margin_kwh": "Consumption estimate margin",
-          "export_surplus_threshold_kwh": "Minimum expected surplus",
-          "price_floor": "Export price floor",
-          "min_export_power_w": "Minimum controlled export power",
-          "max_export_power_w": "Maximum controlled export power",
-          "typical_idle_power_w": "Typical idle house power",
-          "guard_enabled": "Enable export guard",
-          "allow_battery_early_export": "Allow early export from battery"
+          "night_tariff_number": "Night tariff number (optional)"
         }
       }
     },
@@ -42,8 +31,7 @@
       "invalid_energy_unit": "The selected sensor must use kWh.",
       "invalid_power_unit": "The selected sensor must use W.",
       "invalid_soc_unit": "The selected battery SOC sensor must use %.",
-      "invalid_export_power_unit": "The selected inverter export power number must use W.",
-      "invalid_time": "Enter time as HH:MM or HH:MM:SS."
+      "invalid_export_power_unit": "The selected inverter export power number must use W."
     },
     "abort": {
       "already_configured": "Negative Price Export Guard is already configured."
@@ -77,6 +65,10 @@
     "switch": {
       "guard_enabled": { "name": "Export guard enabled" },
       "allow_battery_early_export": { "name": "Allow early export from battery" }
+    },
+    "time": {
+      "solar_window_start": { "name": "Solar window start" },
+      "solar_window_end": { "name": "Solar window end" }
     }
   }
 }
