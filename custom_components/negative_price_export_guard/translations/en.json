@@ -36,5 +36,39 @@
     "abort": {
       "already_configured": "Negative Price Export Guard is already configured."
     }
+  },
+  "entity": {
+    "sensor": {
+      "okte_spot_price": { "name": "OKTE spot price" },
+      "negative_price_minutes_until_window_end": { "name": "Negative price minutes until window end" },
+      "solar_window_load_7d_average": { "name": "Solar window load 7d average" },
+      "solar_window_load_today": { "name": "Solar window load today" },
+      "remaining_solar_window_load_estimate": { "name": "Remaining solar window load estimate" },
+      "expected_load_power": { "name": "Expected house load power" },
+      "battery_target_soc": { "name": "Battery target SOC" },
+      "expected_surplus_today": { "name": "Expected surplus today" },
+      "recommended_export_power": { "name": "Recommended export power" },
+      "sell_price": { "name": "Electricity sell price" }
+    },
+    "binary_sensor": {
+      "export_wanted": { "name": "Export wanted" }
+    },
+    "number": {
+      "min_reserve_soc": { "name": "Minimum battery reserve SOC" },
+      "consumption_margin_kwh": { "name": "Consumption estimate margin" },
+      "export_surplus_threshold_kwh": { "name": "Minimum expected surplus" },
+      "price_floor": { "name": "Export price floor" },
+      "min_export_power_w": { "name": "Minimum controlled export power" },
+      "max_export_power_w": { "name": "Maximum controlled export power" },
+      "typical_idle_power_w": { "name": "Typical idle house power" }
+    },
+    "switch": {
+      "guard_enabled": { "name": "Export guard enabled" },
+      "allow_battery_early_export": { "name": "Allow early export from battery" }
+    },
+    "time": {
+      "solar_window_start": { "name": "Solar window start" },
+      "solar_window_end": { "name": "Solar window end" }
+    }
   }
 }
