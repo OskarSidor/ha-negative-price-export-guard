@@ -1,0 +1,13 @@
+{
+  "domain": "negative_price_export_guard",
+  "name": "Negative Price Export Guard",
+  "codeowners": ["@OskarSidor"],
+  "config_flow": true,
+  "documentation": "https://github.com/OskarSidor/ha-negative-price-export-guard",
+  "integration_type": "hub",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/OskarSidor/ha-negative-price-export-guard/issues",
+  "requirements": [],
+  "single_config_entry": true,
+  "version": "0.1.0"
+}
