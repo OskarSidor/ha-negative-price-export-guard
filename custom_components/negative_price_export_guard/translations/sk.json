@@ -36,5 +36,39 @@
     "abort": {
       "already_configured": "Ochrana exportu pri záporných cenách je už nastavená."
     }
+  },
+  "entity": {
+    "sensor": {
+      "okte_spot_price": { "name": "OKTE spotová cena" },
+      "negative_price_minutes_until_window_end": { "name": "Minúty zápornej ceny do konca solárneho okna" },
+      "solar_window_load_7d_average": { "name": "Priemer spotreby v solárnom okne 7d" },
+      "solar_window_load_today": { "name": "Spotreba v solárnom okne dnes" },
+      "remaining_solar_window_load_estimate": { "name": "Odhad zostávajúcej spotreby v solárnom okne" },
+      "expected_load_power": { "name": "Očakávaný výkon spotreby domu" },
+      "battery_target_soc": { "name": "Cieľové SOC batérie" },
+      "expected_surplus_today": { "name": "Očakávaný prebytok dnes" },
+      "recommended_export_power": { "name": "Odporúčaný výkon exportu" },
+      "sell_price": { "name": "Cena výkupu elektriny" }
+    },
+    "binary_sensor": {
+      "export_wanted": { "name": "Export požadovaný" }
+    },
+    "number": {
+      "min_reserve_soc": { "name": "Minimálna rezerva batérie" },
+      "consumption_margin_kwh": { "name": "Rezerva odhadu spotreby" },
+      "export_surplus_threshold_kwh": { "name": "Minimálny očakávaný prebytok" },
+      "price_floor": { "name": "Minimálna spotová cena pre export" },
+      "min_export_power_w": { "name": "Minimálny riadený výkon exportu" },
+      "max_export_power_w": { "name": "Maximálny riadený výkon exportu" },
+      "typical_idle_power_w": { "name": "Typická minimálna spotreba domu" }
+    },
+    "switch": {
+      "guard_enabled": { "name": "Ochrana exportu zapnutá" },
+      "allow_battery_early_export": { "name": "Povoliť skorý export z batérie" }
+    },
+    "time": {
+      "solar_window_start": { "name": "Začiatok solárneho okna" },
+      "solar_window_end": { "name": "Koniec solárneho okna" }
+    }
   }
 }
