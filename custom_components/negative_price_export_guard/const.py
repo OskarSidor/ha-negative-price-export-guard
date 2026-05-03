@@ -13,6 +13,7 @@ PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
     Platform.NUMBER,
     Platform.SWITCH,
+    Platform.TIME,
 ]
 
 CONF_OKTE_PRICE_SENSOR = "okte_price_sensor"
@@ -43,6 +44,24 @@ CONF_TYPICAL_IDLE_POWER_W = "typical_idle_power_w"
 CONF_GUARD_ENABLED = "guard_enabled"
 CONF_ALLOW_BATTERY_EARLY_EXPORT = "allow_battery_early_export"
 
+DEFAULT_OKTE_PRICE_SENSOR = "sensor.okte_ceny_elektriny_prices"
+DEFAULT_SOLCAST_FORECAST_TODAY_SENSOR = "sensor.solcast_pv_forecast_predpoved_dnes"
+DEFAULT_SOLCAST_REMAINING_TODAY_SENSOR = (
+    "sensor.solcast_pv_forecast_predpoved_zostavajuca_dnes"
+)
+DEFAULT_TODAY_LOAD_CONSUMPTION_SENSOR = "sensor.inverter_today_load_consumption"
+DEFAULT_TOTAL_ENERGY_EXPORT_SENSOR = "sensor.inverter_total_energy_export"
+DEFAULT_TODAY_PRODUCTION_SENSOR = "sensor.inverter_today_production"
+DEFAULT_BATTERY_SOC_SENSOR = "sensor.inverter_battery"
+DEFAULT_BATTERY_CAPACITY_SENSOR = "sensor.inverter_battery_capacity"
+DEFAULT_PV_POWER_SENSOR = "sensor.inverter_pv_power"
+DEFAULT_LOAD_POWER_SENSOR = "sensor.inverter_load_power"
+DEFAULT_INVERTER_WORK_MODE_SELECT = "select.inverter_work_mode"
+DEFAULT_EXPORT_SURPLUS_SWITCH = "switch.inverter_export_surplus"
+DEFAULT_EXPORT_SURPLUS_POWER_NUMBER = "number.inverter_export_surplus_power"
+DEFAULT_GRID_MAX_EXPORT_POWER_NUMBER = "number.solarny_menic_grid_max_export_power"
+DEFAULT_NIGHT_TARIFF_NUMBER = "input_number.cena_elektriny_nocny_tarif"
+
 DEFAULT_SOLAR_WINDOW_START = "07:00:00"
 DEFAULT_SOLAR_WINDOW_END = "18:00:00"
 DEFAULT_MIN_RESERVE_SOC = 30
@@ -55,7 +74,7 @@ DEFAULT_TYPICAL_IDLE_POWER_W = 0
 DEFAULT_GUARD_ENABLED = True
 DEFAULT_ALLOW_BATTERY_EARLY_EXPORT = True
 DEFAULT_BATTERY_CAPACITY_KWH = 20
-DEFAULT_NIGHT_TARIFF_EUR_KWH = 0.052
+DEFAULT_NIGHT_TARIFF_EUR_KWH = 0.054
 
 SOLAR_WINDOW_START = time(7, 0)
 SOLAR_WINDOW_END = time(18, 0)
