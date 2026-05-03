@@ -176,18 +176,25 @@ template:
             {% set idx = (((as_timestamp(now()) - as_timestamp(today_at('07:00'))) / 900) | int) - 1 %}
             {% set in_window = valid and now() > today_at('07:00') and now() <= today_at('18:00') and idx >= 0 and idx < 44 %}
             {% if in_window %}
-              {% set previous_total = start_total if old_today.get('date') != today or old_intervals | count == 0 else this.attributes.last_interval_total_kwh | default(current_total, true) | float(current_total) %}
-              {% set interval_start = (today_at('07:00') + timedelta(minutes=idx * 15)).strftime('%H:%M:%S') %}
-              {% set interval_end = (today_at('07:00') + timedelta(minutes=(idx + 1) * 15)).strftime('%H:%M:%S') %}
-              {% set delta = ([current_total - previous_total, 0] | max) | round(3) %}
-              {% set ns = namespace(intervals=[]) %}
-              {% for item in old_intervals %}
-                {% if item.index | int(-1) != idx %}
-                  {% set ns.intervals = ns.intervals + [item] %}
-                {% endif %}
-              {% endfor %}
-              {% set ns.intervals = (ns.intervals + [{'index': idx, 'start': interval_start, 'end': interval_end, 'consumption_kwh': delta}]) | sort(attribute='index') | list %}
-              {{ {'date': today, 'intervals': ns.intervals} }}
+              {% set last_idx = this.attributes.current_interval_index | default(none, true) if this is defined else none %}
+              {% set has_previous_interval_baseline = last_idx is not none and (last_idx | int(-99)) == idx - 1 %}
+              {% set first_sample_mid_window = old_intervals | count == 0 and idx > 0 and not has_previous_interval_baseline %}
+              {% if first_sample_mid_window %}
+                {{ {'date': today, 'intervals': old_intervals} }}
+              {% else %}
+                {% set previous_total = start_total if old_today.get('date') != today or (old_intervals | count == 0 and idx == 0) else this.attributes.last_interval_total_kwh | default(current_total, true) | float(current_total) %}
+                {% set interval_start = (today_at('07:00') + timedelta(minutes=idx * 15)).strftime('%H:%M:%S') %}
+                {% set interval_end = (today_at('07:00') + timedelta(minutes=(idx + 1) * 15)).strftime('%H:%M:%S') %}
+                {% set delta = ([current_total - previous_total, 0] | max) | round(3) %}
+                {% set ns = namespace(intervals=[]) %}
+                {% for item in old_intervals %}
+                  {% if item.index | int(-1) != idx %}
+                    {% set ns.intervals = ns.intervals + [item] %}
+                  {% endif %}
+                {% endfor %}
+                {% set ns.intervals = (ns.intervals + [{'index': idx, 'start': interval_start, 'end': interval_end, 'consumption_kwh': delta}]) | sort(attribute='index') | list %}
+                {{ {'date': today, 'intervals': ns.intervals} }}
+              {% endif %}
             {% else %}
               {{ {'date': today, 'intervals': old_intervals} }}
             {% endif %}
@@ -203,11 +210,8 @@ template:
             {% set idx = (((as_timestamp(now()) - as_timestamp(today_at('07:00'))) / 900) | int) - 1 %}
             {% set close_window = valid and now().hour == 18 and now().minute == 0 and idx == 43 %}
             {% if close_window %}
-              {% set previous_total = start_total if old_today.get('date') != today or old_intervals | count == 0 else this.attributes.last_interval_total_kwh | default(current_total, true) | float(current_total) %}
+              {% set previous_total = start_total if old_today.get('date') != today or (old_intervals | count == 0 and idx == 0) else this.attributes.last_interval_total_kwh | default(current_total, true) | float(current_total) %}
               {% set delta = ([current_total - previous_total, 0] | max) | round(3) %}
-              {% if delta ==  current_total %}
-                {% set delta = 0 %}
-              {% endif %}
               {% set ns = namespace(intervals=[]) %}
               {% for item in old_intervals %}
                 {% if item.index | int(-1) != idx %}
@@ -217,7 +221,7 @@ template:
               {% set interval_start = (today_at('07:00') + timedelta(minutes=idx * 15)).strftime('%H:%M:%S') %}
               {% set interval_end = (today_at('07:00') + timedelta(minutes=(idx + 1) * 15)).strftime('%H:%M:%S') %}
               {% set intervals = (ns.intervals + [{'index': idx, 'start': interval_start, 'end': interval_end, 'consumption_kwh': delta}]) | sort(attribute='index') | list %}
-              {% if intervals | count > 0 %}
+              {% if intervals | count >= 40 %}
                 {% set filtered = old_curves | rejectattr('date', 'eq', today) | list %}
                 {{ ([{'date': today, 'intervals': intervals}] + filtered)[:7] }}
               {% else %}
