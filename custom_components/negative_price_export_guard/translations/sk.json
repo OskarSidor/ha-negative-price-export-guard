@@ -1,0 +1,52 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Ochrana exportu pri záporných cenách",
+        "description": "Vyberte entity z Home Assistant, ktoré bude optimalizér používať. Prvá verzia integrácie iba číta a počíta hodnoty; riadenie meniča pridáme až po stabilizovaní výpočtovej vrstvy.",
+        "data": {
+          "name": "Názov",
+          "okte_price_sensor": "Senzor cien OKTE",
+          "solcast_forecast_today_sensor": "Senzor dnešnej predpovede Solcast",
+          "solcast_remaining_today_sensor": "Senzor zostávajúcej produkcie dnes zo Solcast",
+          "today_load_consumption_sensor": "Senzor dnešnej spotreby domu",
+          "total_energy_export_sensor": "Senzor celkového exportu do siete",
+          "today_production_sensor": "Senzor dnešnej PV výroby",
+          "battery_soc_sensor": "Senzor SOC batérie",
+          "battery_capacity_sensor": "Senzor kapacity batérie",
+          "pv_power_sensor": "Senzor aktuálneho PV výkonu",
+          "load_power_sensor": "Senzor aktuálnej spotreby domu",
+          "inverter_work_mode_select": "Výber režimu meniča",
+          "export_surplus_switch": "Prepínač exportu PV prebytkov",
+          "export_surplus_power_number": "Nastavenie výkonu exportu prebytkov",
+          "grid_max_export_power_number": "Maximálny povolený výkon exportu",
+          "night_tariff_number": "Nočný tarif",
+          "solar_window_start": "Začiatok solárneho okna",
+          "solar_window_end": "Koniec solárneho okna",
+          "min_reserve_soc": "Minimálna rezerva batérie",
+          "consumption_margin_kwh": "Rezerva odhadu spotreby",
+          "export_surplus_threshold_kwh": "Minimálny očakávaný prebytok",
+          "price_floor": "Minimálna spotová cena pre export",
+          "min_export_power_w": "Minimálny riadený výkon exportu",
+          "max_export_power_w": "Maximálny riadený výkon exportu",
+          "typical_idle_power_w": "Typická minimálna spotreba domu",
+          "guard_enabled": "Zapnúť ochranu exportu",
+          "allow_battery_early_export": "Povoliť skorý export z batérie"
+        }
+      }
+    },
+    "error": {
+      "missing_entity": "Vybraná entita neexistuje.",
+      "missing_prices_attribute": "Vybraný OKTE senzor musí mať atribút prices.",
+      "missing_detailed_forecast_attribute": "Vybraný Solcast senzor predpovede musí mať atribút detailedForecast.",
+      "invalid_energy_unit": "Vybraný senzor musí používať kWh.",
+      "invalid_power_unit": "Vybraný senzor musí používať W.",
+      "invalid_soc_unit": "Vybraný senzor SOC batérie musí používať %.",
+      "invalid_export_power_unit": "Vybrané nastavenie výkonu exportu z meniča musí používať W.",
+      "invalid_time": "Zadajte čas vo formáte HH:MM alebo HH:MM:SS."
+    },
+    "abort": {
+      "already_configured": "Ochrana exportu pri záporných cenách je už nastavená."
+    }
+  }
+}
