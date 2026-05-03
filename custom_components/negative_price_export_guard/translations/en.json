@@ -36,7 +36,14 @@
       }
     },
     "error": {
-      "missing_entities": "One or more selected entities do not exist."
+      "missing_entity": "The selected entity does not exist.",
+      "missing_prices_attribute": "The selected OKTE sensor must expose a prices attribute.",
+      "missing_detailed_forecast_attribute": "The selected Solcast forecast sensor must expose a detailedForecast attribute.",
+      "invalid_energy_unit": "The selected sensor must use kWh.",
+      "invalid_power_unit": "The selected sensor must use W.",
+      "invalid_soc_unit": "The selected battery SOC sensor must use %.",
+      "invalid_export_power_unit": "The selected inverter export power number must use W.",
+      "invalid_time": "Enter time as HH:MM or HH:MM:SS."
     },
     "abort": {
       "already_configured": "Negative Price Export Guard is already configured."
