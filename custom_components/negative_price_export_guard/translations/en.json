@@ -1,0 +1,45 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Negative Price Export Guard",
+        "description": "Select the Home Assistant entities used by the optimizer. The integration only reads and calculates values in this first version; inverter control will be added after the calculation layer is stable.",
+        "data": {
+          "name": "Name",
+          "okte_price_sensor": "OKTE price sensor",
+          "solcast_forecast_today_sensor": "Solcast forecast today sensor",
+          "solcast_remaining_today_sensor": "Solcast remaining production today sensor",
+          "today_load_consumption_sensor": "Daily house load consumption sensor",
+          "total_energy_export_sensor": "Total grid export sensor",
+          "today_production_sensor": "Daily PV production sensor",
+          "battery_soc_sensor": "Battery SOC sensor",
+          "battery_capacity_sensor": "Battery capacity sensor",
+          "pv_power_sensor": "Current PV power sensor",
+          "load_power_sensor": "Current house load power sensor",
+          "inverter_work_mode_select": "Inverter work mode select",
+          "export_surplus_switch": "PV surplus export switch",
+          "export_surplus_power_number": "Export surplus power number",
+          "grid_max_export_power_number": "Maximum grid export power number",
+          "night_tariff_number": "Night tariff number",
+          "solar_window_start": "Solar window start",
+          "solar_window_end": "Solar window end",
+          "min_reserve_soc": "Minimum battery reserve SOC",
+          "consumption_margin_kwh": "Consumption estimate margin",
+          "export_surplus_threshold_kwh": "Minimum expected surplus",
+          "price_floor": "Export price floor",
+          "min_export_power_w": "Minimum controlled export power",
+          "max_export_power_w": "Maximum controlled export power",
+          "typical_idle_power_w": "Typical idle house power",
+          "guard_enabled": "Enable export guard",
+          "allow_battery_early_export": "Allow early export from battery"
+        }
+      }
+    },
+    "error": {
+      "missing_entities": "One or more selected entities do not exist."
+    },
+    "abort": {
+      "already_configured": "Negative Price Export Guard is already configured."
+    }
+  }
+}
