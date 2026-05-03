@@ -36,7 +36,14 @@
       }
     },
     "error": {
-      "missing_entities": "Jedna alebo viac vybraných entít neexistuje."
+      "missing_entity": "Vybraná entita neexistuje.",
+      "missing_prices_attribute": "Vybraný OKTE senzor musí mať atribút prices.",
+      "missing_detailed_forecast_attribute": "Vybraný Solcast senzor predpovede musí mať atribút detailedForecast.",
+      "invalid_energy_unit": "Vybraný senzor musí používať kWh.",
+      "invalid_power_unit": "Vybraný senzor musí používať W.",
+      "invalid_soc_unit": "Vybraný senzor SOC batérie musí používať %.",
+      "invalid_export_power_unit": "Vybrané nastavenie výkonu exportu z meniča musí používať W.",
+      "invalid_time": "Zadajte čas vo formáte HH:MM alebo HH:MM:SS."
     },
     "abort": {
       "already_configured": "Ochrana exportu pri záporných cenách je už nastavená."
