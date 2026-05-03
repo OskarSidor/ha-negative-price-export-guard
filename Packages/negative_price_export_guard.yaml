@@ -60,7 +60,7 @@ input_number:
     step: 0.5
     unit_of_measurement: kWh
     mode: slider
-    initial: 2
+    initial: 1
 
   export_optimizer_export_surplus_threshold_kwh:
     name: Minimálny očakávaný prebytok
@@ -205,6 +205,9 @@ template:
             {% if close_window %}
               {% set previous_total = start_total if old_today.get('date') != today or old_intervals | count == 0 else this.attributes.last_interval_total_kwh | default(current_total, true) | float(current_total) %}
               {% set delta = ([current_total - previous_total, 0] | max) | round(3) %}
+              {% if delta ==  current_total %}
+                {% set delta = 0 %}
+              {% endif %}
               {% set ns = namespace(intervals=[]) %}
               {% for item in old_intervals %}
                 {% if item.index | int(-1) != idx %}
