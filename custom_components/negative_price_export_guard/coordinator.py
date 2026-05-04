@@ -44,6 +44,7 @@ from .const import (
     CONF_SOLCAST_FORECAST_TODAY_SENSOR,
     CONF_SOLCAST_REMAINING_TODAY_SENSOR,
     CONF_TODAY_LOAD_CONSUMPTION_SENSOR,
+    CONF_TOTAL_ENERGY_EXPORT_SENSOR,
     CONF_TYPICAL_IDLE_POWER_W,
     DEFAULT_BATTERY_CAPACITY_KWH,
     DEFAULT_CONSUMPTION_MARGIN_KWH,
@@ -66,6 +67,12 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 STORAGE_VERSION = 1
+
+KEY_AUTOMATION_EXPORT_SAVINGS = "automation_export_savings"
+KEY_EXPORTED_ENERGY_BY_AUTOMATION = "exported_energy_by_automation"
+KEY_EXPORTED_ENERGY_NEGATIVE_PRICE = "exported_energy_during_negative_spot_price"
+KEY_LAST_TOTAL_ENERGY_EXPORT = "last_total_energy_export_kwh"
+KEY_NEGATIVE_PRICE_WASTED_POTENTIAL = "negative_price_wasted_potential"
 
 
 @dataclass(slots=True)
@@ -233,6 +240,22 @@ class NegativePriceExportGuardCoordinator(DataUpdateCoordinator[dict[str, Any]])
             "export_wanted": export_wanted,
             "export_active": self._control_active,
             "sell_price": self._sell_price(price, options),
+            KEY_EXPORTED_ENERGY_NEGATIVE_PRICE: round(
+                float(self._history.get(KEY_EXPORTED_ENERGY_NEGATIVE_PRICE, 0)),
+                4,
+            ),
+            KEY_EXPORTED_ENERGY_BY_AUTOMATION: round(
+                float(self._history.get(KEY_EXPORTED_ENERGY_BY_AUTOMATION, 0)),
+                4,
+            ),
+            KEY_AUTOMATION_EXPORT_SAVINGS: round(
+                float(self._history.get(KEY_AUTOMATION_EXPORT_SAVINGS, 0)),
+                4,
+            ),
+            KEY_NEGATIVE_PRICE_WASTED_POTENTIAL: round(
+                float(self._history.get(KEY_NEGATIVE_PRICE_WASTED_POTENTIAL, 0)),
+                4,
+            ),
             ATTR_PAST_CONSUMPTION: self._history.get(ATTR_PAST_CONSUMPTION, []),
             ATTR_TODAY_LOAD_CURVE: self._history.get(
                 ATTR_TODAY_LOAD_CURVE,
@@ -246,11 +269,30 @@ class NegativePriceExportGuardCoordinator(DataUpdateCoordinator[dict[str, Any]])
             ATTR_CURRENT_INTERVAL_INDEX: self._current_interval_index(now, options),
         }
 
+        was_control_active = self._control_active
         try:
             await self._async_apply_control(options, data)
         except HomeAssistantError as err:
             _LOGGER.warning("Failed to apply export guard control: %s", err)
         data["export_active"] = self._control_active
+        if self._update_export_accounting(price, options, was_control_active):
+            data[KEY_EXPORTED_ENERGY_NEGATIVE_PRICE] = round(
+                float(self._history.get(KEY_EXPORTED_ENERGY_NEGATIVE_PRICE, 0)),
+                4,
+            )
+            data[KEY_EXPORTED_ENERGY_BY_AUTOMATION] = round(
+                float(self._history.get(KEY_EXPORTED_ENERGY_BY_AUTOMATION, 0)),
+                4,
+            )
+            data[KEY_AUTOMATION_EXPORT_SAVINGS] = round(
+                float(self._history.get(KEY_AUTOMATION_EXPORT_SAVINGS, 0)),
+                4,
+            )
+            data[KEY_NEGATIVE_PRICE_WASTED_POTENTIAL] = round(
+                float(self._history.get(KEY_NEGATIVE_PRICE_WASTED_POTENTIAL, 0)),
+                4,
+            )
+            history_changed = True
         if self._history.get("control_active") != self._control_active:
             self._history["control_active"] = self._control_active
             history_changed = True
@@ -404,6 +446,50 @@ class NegativePriceExportGuardCoordinator(DataUpdateCoordinator[dict[str, Any]])
             - 200,
             0,
         )
+
+    def _update_export_accounting(
+        self,
+        spot_price: float,
+        options: dict[str, Any],
+        was_control_active: bool,
+    ) -> bool:
+        """Update cumulative export accounting from total export delta."""
+        total_export = _float_state(
+            self.hass,
+            options.get(CONF_TOTAL_ENERGY_EXPORT_SENSOR),
+            -1,
+        )
+        if total_export < 0:
+            return False
+
+        previous_export = self._history.get(KEY_LAST_TOTAL_ENERGY_EXPORT)
+        self._history[KEY_LAST_TOTAL_ENERGY_EXPORT] = total_export
+        if previous_export is None:
+            return True
+
+        delta = total_export - float(previous_export)
+        if delta <= 0:
+            return delta < 0
+
+        if spot_price < 0:
+            self._history[KEY_EXPORTED_ENERGY_NEGATIVE_PRICE] = (
+                float(self._history.get(KEY_EXPORTED_ENERGY_NEGATIVE_PRICE, 0)) + delta
+            )
+            self._history[KEY_NEGATIVE_PRICE_WASTED_POTENTIAL] = (
+                float(self._history.get(KEY_NEGATIVE_PRICE_WASTED_POTENTIAL, 0))
+                + delta * self._hypothetical_negative_price_value(options)
+            )
+
+        if was_control_active:
+            self._history[KEY_EXPORTED_ENERGY_BY_AUTOMATION] = (
+                float(self._history.get(KEY_EXPORTED_ENERGY_BY_AUTOMATION, 0)) + delta
+            )
+            self._history[KEY_AUTOMATION_EXPORT_SAVINGS] = (
+                float(self._history.get(KEY_AUTOMATION_EXPORT_SAVINGS, 0))
+                + delta * self._sell_price(spot_price, options)
+            )
+
+        return True
 
     def _window_bounds(
         self, now: datetime, options: dict[str, Any]
@@ -772,6 +858,18 @@ class NegativePriceExportGuardCoordinator(DataUpdateCoordinator[dict[str, Any]])
         """Estimate sell price in EUR/kWh."""
         if spot_price < 0:
             return 0
+        return round(
+            _float_state(
+                self.hass,
+                options.get(CONF_NIGHT_TARIFF_NUMBER),
+                DEFAULT_NIGHT_TARIFF_EUR_KWH,
+            )
+            * 0.88,
+            5,
+        )
+
+    def _hypothetical_negative_price_value(self, options: dict[str, Any]) -> float:
+        """Estimate value lost when export happens during negative spot price."""
         return round(
             _float_state(
                 self.hass,
