@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 import logging
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
@@ -23,9 +25,12 @@ from .const import (
     CONF_BATTERY_CAPACITY_SENSOR,
     CONF_BATTERY_SOC_SENSOR,
     CONF_CONSUMPTION_MARGIN_KWH,
+    CONF_EXPORT_SURPLUS_POWER_NUMBER,
+    CONF_EXPORT_SURPLUS_SWITCH,
     CONF_EXPORT_SURPLUS_THRESHOLD_KWH,
     CONF_GRID_MAX_EXPORT_POWER_NUMBER,
     CONF_GUARD_ENABLED,
+    CONF_INVERTER_WORK_MODE_SELECT,
     CONF_LOAD_POWER_SENSOR,
     CONF_MAX_EXPORT_POWER_W,
     CONF_MIN_EXPORT_POWER_W,
@@ -39,6 +44,8 @@ from .const import (
     CONF_SOLCAST_FORECAST_TODAY_SENSOR,
     CONF_SOLCAST_REMAINING_TODAY_SENSOR,
     CONF_TODAY_LOAD_CONSUMPTION_SENSOR,
+    CONF_TOTAL_ENERGY_EXPORT_SENSOR,
+    CONF_TYPICAL_IDLE_POWER_W,
     DEFAULT_BATTERY_CAPACITY_KWH,
     DEFAULT_CONSUMPTION_MARGIN_KWH,
     DEFAULT_EXPORT_SURPLUS_THRESHOLD_KWH,
@@ -54,15 +61,30 @@ from .const import (
     INTERVAL_MINUTES,
     INTERVALS_PER_SOLAR_WINDOW,
     MIN_COMPLETE_LOAD_CURVE_INTERVALS,
-    CONF_TYPICAL_IDLE_POWER_W,
+    MODE_EXPORT_FIRST,
+    MODE_ZERO_EXPORT_TO_CT,
 )
 
 _LOGGER = logging.getLogger(__name__)
 STORAGE_VERSION = 1
 
+KEY_AUTOMATION_EXPORT_SAVINGS = "automation_export_savings"
+KEY_EXPORTED_ENERGY_BY_AUTOMATION = "exported_energy_by_automation"
+KEY_EXPORTED_ENERGY_NEGATIVE_PRICE = "exported_energy_during_negative_spot_price"
+KEY_LAST_TOTAL_ENERGY_EXPORT = "last_total_energy_export_kwh"
+KEY_NEGATIVE_PRICE_WASTED_POTENTIAL = "negative_price_wasted_potential"
+
+
+@dataclass(slots=True)
+class SourceState:
+    """A source entity state."""
+
+    state: str | None
+    attributes: dict[str, Any]
+
 
 def _parse_time(value: str, fallback: str) -> datetime.time:
-    """Parse a Home Assistant time value."""
+    """Parse a Home Assistant time selector value."""
     for candidate in (value, fallback):
         for time_format in ("%H:%M:%S", "%H:%M"):
             try:
@@ -85,20 +107,14 @@ def _float_state(hass: HomeAssistant, entity_id: str | None, default: float = 0)
         return default
 
 
-def _source_attributes(hass: HomeAssistant, entity_id: str | None) -> dict[str, Any]:
-    """Read source entity attributes."""
+def _source(hass: HomeAssistant, entity_id: str | None) -> SourceState:
+    """Read a source state and attributes."""
     if not entity_id:
-        return {}
+        return SourceState(None, {})
     state = hass.states.get(entity_id)
-    return dict(state.attributes) if state is not None else {}
-
-
-def _source_state(hass: HomeAssistant, entity_id: str | None) -> str | None:
-    """Read source entity state."""
-    if not entity_id:
-        return None
-    state = hass.states.get(entity_id)
-    return state.state if state is not None else None
+    if state is None:
+        return SourceState(None, {})
+    return SourceState(state.state, dict(state.attributes))
 
 
 def _as_local(value: str | datetime | None) -> datetime | None:
@@ -125,6 +141,7 @@ class NegativePriceExportGuardCoordinator(DataUpdateCoordinator[dict[str, Any]])
             update_interval=timedelta(minutes=5),
         )
         self.config_entry = entry
+        self._control_active = False
         self._store: Store[dict[str, Any]] = Store(
             hass, STORAGE_VERSION, f"{DOMAIN}_{entry.entry_id}"
         )
@@ -133,6 +150,7 @@ class NegativePriceExportGuardCoordinator(DataUpdateCoordinator[dict[str, Any]])
     async def async_config_entry_first_refresh(self) -> None:
         """Load storage before the first refresh."""
         self._history = await self._store.async_load() or {}
+        self._control_active = bool(self._history.get("control_active", False))
         await super().async_config_entry_first_refresh()
 
     @property
@@ -166,7 +184,9 @@ class NegativePriceExportGuardCoordinator(DataUpdateCoordinator[dict[str, Any]])
             DEFAULT_BATTERY_CAPACITY_KWH,
         )
         battery_soc = _float_state(self.hass, options.get(CONF_BATTERY_SOC_SENSOR), 0)
-        min_reserve_soc = float(options.get(CONF_MIN_RESERVE_SOC, DEFAULT_MIN_RESERVE_SOC))
+        min_reserve_soc = float(
+            options.get(CONF_MIN_RESERVE_SOC, DEFAULT_MIN_RESERVE_SOC)
+        )
         battery_above_reserve = max(
             ((battery_soc - min_reserve_soc) / 100) * battery_capacity,
             0,
@@ -207,10 +227,7 @@ class NegativePriceExportGuardCoordinator(DataUpdateCoordinator[dict[str, Any]])
             and recommended_export_power > 0
         )
 
-        if history_changed:
-            await self._store.async_save(self._history)
-
-        return {
+        data = {
             "okte_spot_price": round(price, 3),
             "negative_price_minutes_until_window_end": negative_minutes,
             "solar_window_load_7d_average": solar_window_load_average,
@@ -221,7 +238,24 @@ class NegativePriceExportGuardCoordinator(DataUpdateCoordinator[dict[str, Any]])
             "expected_surplus_today": expected_surplus,
             "recommended_export_power": round(recommended_export_power),
             "export_wanted": export_wanted,
+            "export_active": self._control_active,
             "sell_price": self._sell_price(price, options),
+            KEY_EXPORTED_ENERGY_NEGATIVE_PRICE: round(
+                float(self._history.get(KEY_EXPORTED_ENERGY_NEGATIVE_PRICE, 0)),
+                4,
+            ),
+            KEY_EXPORTED_ENERGY_BY_AUTOMATION: round(
+                float(self._history.get(KEY_EXPORTED_ENERGY_BY_AUTOMATION, 0)),
+                4,
+            ),
+            KEY_AUTOMATION_EXPORT_SAVINGS: round(
+                float(self._history.get(KEY_AUTOMATION_EXPORT_SAVINGS, 0)),
+                4,
+            ),
+            KEY_NEGATIVE_PRICE_WASTED_POTENTIAL: round(
+                float(self._history.get(KEY_NEGATIVE_PRICE_WASTED_POTENTIAL, 0)),
+                4,
+            ),
             ATTR_PAST_CONSUMPTION: self._history.get(ATTR_PAST_CONSUMPTION, []),
             ATTR_TODAY_LOAD_CURVE: self._history.get(
                 ATTR_TODAY_LOAD_CURVE,
@@ -234,6 +268,228 @@ class NegativePriceExportGuardCoordinator(DataUpdateCoordinator[dict[str, Any]])
             ),
             ATTR_CURRENT_INTERVAL_INDEX: self._current_interval_index(now, options),
         }
+
+        was_control_active = self._control_active
+        try:
+            await self._async_apply_control(options, data)
+        except HomeAssistantError as err:
+            _LOGGER.warning("Failed to apply export guard control: %s", err)
+        data["export_active"] = self._control_active
+        if self._update_export_accounting(price, options, was_control_active):
+            data[KEY_EXPORTED_ENERGY_NEGATIVE_PRICE] = round(
+                float(self._history.get(KEY_EXPORTED_ENERGY_NEGATIVE_PRICE, 0)),
+                4,
+            )
+            data[KEY_EXPORTED_ENERGY_BY_AUTOMATION] = round(
+                float(self._history.get(KEY_EXPORTED_ENERGY_BY_AUTOMATION, 0)),
+                4,
+            )
+            data[KEY_AUTOMATION_EXPORT_SAVINGS] = round(
+                float(self._history.get(KEY_AUTOMATION_EXPORT_SAVINGS, 0)),
+                4,
+            )
+            data[KEY_NEGATIVE_PRICE_WASTED_POTENTIAL] = round(
+                float(self._history.get(KEY_NEGATIVE_PRICE_WASTED_POTENTIAL, 0)),
+                4,
+            )
+            history_changed = True
+        if self._history.get("control_active") != self._control_active:
+            self._history["control_active"] = self._control_active
+            history_changed = True
+
+        if history_changed:
+            await self._store.async_save(self._history)
+
+        return data
+
+    async def _async_apply_control(
+        self,
+        options: dict[str, Any],
+        data: dict[str, Any],
+    ) -> None:
+        """Apply the calculated export mode to the inverter."""
+        work_mode_entity = options.get(CONF_INVERTER_WORK_MODE_SELECT)
+        export_power_entity = options.get(CONF_EXPORT_SURPLUS_POWER_NUMBER)
+        if not work_mode_entity or not export_power_entity:
+            return
+
+        price = float(data.get("okte_spot_price", 999))
+        floor = float(options.get(CONF_PRICE_FLOOR, DEFAULT_PRICE_FLOOR))
+        battery_soc = _float_state(self.hass, options.get(CONF_BATTERY_SOC_SENSOR), 0)
+        export_surplus_on = (
+            _source(self.hass, options.get(CONF_EXPORT_SURPLUS_SWITCH)).state == "on"
+        )
+        work_mode = _source(self.hass, work_mode_entity).state
+        guard_enabled = bool(options.get(CONF_GUARD_ENABLED, True))
+        full_battery = battery_soc >= 99
+
+        if full_battery and export_surplus_on:
+            full_battery_target = self._max_allowed_export_power(options)
+        else:
+            full_battery_target = 0
+
+        if not guard_enabled:
+            if self._control_active:
+                await self._async_select_work_mode(
+                    work_mode_entity,
+                    work_mode,
+                    MODE_ZERO_EXPORT_TO_CT,
+                )
+                if full_battery_target > 0:
+                    await self._async_set_export_power_if_needed(
+                        export_power_entity,
+                        full_battery_target,
+                    )
+            self._control_active = False
+            return
+
+        if price < floor:
+            await self._async_select_work_mode(
+                work_mode_entity,
+                work_mode,
+                MODE_ZERO_EXPORT_TO_CT,
+            )
+            if full_battery_target > 0:
+                await self._async_set_export_power_if_needed(
+                    export_power_entity,
+                    full_battery_target,
+                )
+            self._control_active = False
+            return
+
+        if (
+            full_battery_target > 0
+            and work_mode == MODE_ZERO_EXPORT_TO_CT
+            and not bool(data.get("export_wanted"))
+        ):
+            await self._async_set_export_power_if_needed(
+                export_power_entity,
+                full_battery_target,
+            )
+            self._control_active = False
+            return
+
+        if bool(data.get("export_wanted")):
+            target = float(data.get("recommended_export_power", 0))
+            if full_battery:
+                target = min(
+                    max(target, self._live_surplus_power(options)),
+                    self._max_allowed_export_power(options),
+                )
+            await self._async_set_export_power_if_needed(export_power_entity, target)
+            await self._async_select_work_mode(
+                work_mode_entity,
+                work_mode,
+                MODE_EXPORT_FIRST,
+            )
+            self._control_active = True
+            return
+
+        if self._control_active:
+            await self._async_select_work_mode(
+                work_mode_entity,
+                work_mode,
+                MODE_ZERO_EXPORT_TO_CT,
+            )
+            self._control_active = False
+
+    async def _async_select_work_mode(
+        self,
+        entity_id: str,
+        current_mode: str | None,
+        target_mode: str,
+    ) -> None:
+        """Set inverter work mode if needed."""
+        if current_mode == target_mode:
+            return
+        await self.hass.services.async_call(
+            "select",
+            "select_option",
+            {"entity_id": entity_id, "option": target_mode},
+            blocking=True,
+        )
+
+    async def _async_set_export_power_if_needed(
+        self,
+        entity_id: str,
+        target_w: float,
+    ) -> None:
+        """Set export power if the difference is meaningful."""
+        if target_w <= 0:
+            return
+        current_w = _float_state(self.hass, entity_id, 0)
+        if abs(current_w - target_w) <= 50:
+            return
+        await self.hass.services.async_call(
+            "number",
+            "set_value",
+            {"entity_id": entity_id, "value": round(target_w)},
+            blocking=True,
+        )
+
+    def _max_allowed_export_power(self, options: dict[str, Any]) -> float:
+        """Return the configured hard export-power ceiling."""
+        return min(
+            float(options.get(CONF_MAX_EXPORT_POWER_W, DEFAULT_MAX_EXPORT_POWER_W)),
+            _float_state(
+                self.hass,
+                options.get(CONF_GRID_MAX_EXPORT_POWER_NUMBER),
+                DEFAULT_MAX_EXPORT_POWER_W,
+            ),
+        )
+
+    def _live_surplus_power(self, options: dict[str, Any]) -> float:
+        """Return current PV surplus with a small buffer."""
+        return max(
+            _float_state(self.hass, options.get(CONF_PV_POWER_SENSOR), 0)
+            - _float_state(self.hass, options.get(CONF_LOAD_POWER_SENSOR), 0)
+            - 200,
+            0,
+        )
+
+    def _update_export_accounting(
+        self,
+        spot_price: float,
+        options: dict[str, Any],
+        was_control_active: bool,
+    ) -> bool:
+        """Update cumulative export accounting from total export delta."""
+        total_export = _float_state(
+            self.hass,
+            options.get(CONF_TOTAL_ENERGY_EXPORT_SENSOR),
+            -1,
+        )
+        if total_export < 0:
+            return False
+
+        previous_export = self._history.get(KEY_LAST_TOTAL_ENERGY_EXPORT)
+        self._history[KEY_LAST_TOTAL_ENERGY_EXPORT] = total_export
+        if previous_export is None:
+            return True
+
+        delta = total_export - float(previous_export)
+        if delta <= 0:
+            return delta < 0
+
+        if spot_price < 0:
+            self._history[KEY_EXPORTED_ENERGY_NEGATIVE_PRICE] = (
+                float(self._history.get(KEY_EXPORTED_ENERGY_NEGATIVE_PRICE, 0)) + delta
+            )
+            self._history[KEY_NEGATIVE_PRICE_WASTED_POTENTIAL] = (
+                float(self._history.get(KEY_NEGATIVE_PRICE_WASTED_POTENTIAL, 0))
+                + delta * self._hypothetical_negative_price_value(options)
+            )
+
+        if was_control_active:
+            self._history[KEY_EXPORTED_ENERGY_BY_AUTOMATION] = (
+                float(self._history.get(KEY_EXPORTED_ENERGY_BY_AUTOMATION, 0)) + delta
+            )
+            self._history[KEY_AUTOMATION_EXPORT_SAVINGS] = (
+                float(self._history.get(KEY_AUTOMATION_EXPORT_SAVINGS, 0))
+                + delta * self._sell_price(spot_price, options)
+            )
+
+        return True
 
     def _window_bounds(
         self, now: datetime, options: dict[str, Any]
@@ -314,12 +570,16 @@ class NegativePriceExportGuardCoordinator(DataUpdateCoordinator[dict[str, Any]])
         old_today = self._history.get(
             ATTR_TODAY_LOAD_CURVE, {"date": today, "intervals": []}
         )
-        old_intervals = old_today.get("intervals", []) if old_today.get("date") == today else []
+        old_intervals = (
+            old_today.get("intervals", []) if old_today.get("date") == today else []
+        )
         previous_idx = self._previous_interval_index(now, options)
 
         if now > start and now <= end and previous_idx is not None:
             last_idx = self._history.get(ATTR_CURRENT_INTERVAL_INDEX)
-            has_previous_baseline = last_idx is not None and int(last_idx) == previous_idx - 1
+            has_previous_baseline = (
+                last_idx is not None and int(last_idx) == previous_idx - 1
+            )
             first_sample_mid_window = (
                 len(old_intervals) == 0 and previous_idx > 0 and not has_previous_baseline
             )
@@ -347,7 +607,9 @@ class NegativePriceExportGuardCoordinator(DataUpdateCoordinator[dict[str, Any]])
             changed = True
 
         if now >= end and self._history.get("last_archived_date") != today:
-            intervals = self._history.get(ATTR_TODAY_LOAD_CURVE, {}).get("intervals", [])
+            intervals = self._history.get(ATTR_TODAY_LOAD_CURVE, {}).get(
+                "intervals", []
+            )
             if len(intervals) >= MIN_COMPLETE_LOAD_CURVE_INTERVALS:
                 past_curves = [
                     item
@@ -481,16 +743,16 @@ class NegativePriceExportGuardCoordinator(DataUpdateCoordinator[dict[str, Any]])
 
     def _current_spot_price(self, now: datetime, options: dict[str, Any]) -> float:
         """Read current OKTE price from the prices attribute."""
-        prices = _source_attributes(self.hass, options.get(CONF_OKTE_PRICE_SENSOR)).get("prices") or []
+        source = _source(self.hass, options.get(CONF_OKTE_PRICE_SENSOR))
+        prices = source.attributes.get("prices") or []
         for item in prices:
             start = _as_local(item.get("start"))
             if start is None:
                 continue
             if start <= now < start + timedelta(minutes=15):
                 return float(item.get("price", 999))
-        state = _source_state(self.hass, options.get(CONF_OKTE_PRICE_SENSOR))
         try:
-            return float(state)
+            return float(source.state)
         except (TypeError, ValueError):
             return 999
 
@@ -500,9 +762,9 @@ class NegativePriceExportGuardCoordinator(DataUpdateCoordinator[dict[str, Any]])
         """Count negative-price minutes until the solar window end."""
         _, end = self._window_bounds(now, options)
         floor = float(options.get(CONF_PRICE_FLOOR, DEFAULT_PRICE_FLOOR))
-        attrs = _source_attributes(self.hass, options.get(CONF_OKTE_PRICE_SENSOR))
+        source = _source(self.hass, options.get(CONF_OKTE_PRICE_SENSOR))
         minutes = 0
-        for item in attrs.get("prices") or []:
+        for item in source.attributes.get("prices") or []:
             start = _as_local(item.get("start"))
             if start is None:
                 continue
@@ -578,13 +840,17 @@ class NegativePriceExportGuardCoordinator(DataUpdateCoordinator[dict[str, Any]])
         """Find the next negative-price block start."""
         _, end = self._window_bounds(now, options)
         floor = float(options.get(CONF_PRICE_FLOOR, DEFAULT_PRICE_FLOOR))
-        attrs = _source_attributes(self.hass, options.get(CONF_OKTE_PRICE_SENSOR))
-        for item in attrs.get("prices") or []:
+        source = _source(self.hass, options.get(CONF_OKTE_PRICE_SENSOR))
+        for item in source.attributes.get("prices") or []:
             start = _as_local(item.get("start"))
             if start is None:
                 continue
             interval_end = start + timedelta(minutes=15)
-            if interval_end > now and start < end and float(item.get("price", 999)) < floor:
+            if (
+                interval_end > now
+                and start < end
+                and float(item.get("price", 999)) < floor
+            ):
                 return max(start, now)
         return None
 
@@ -592,6 +858,18 @@ class NegativePriceExportGuardCoordinator(DataUpdateCoordinator[dict[str, Any]])
         """Estimate sell price in EUR/kWh."""
         if spot_price < 0:
             return 0
+        return round(
+            _float_state(
+                self.hass,
+                options.get(CONF_NIGHT_TARIFF_NUMBER),
+                DEFAULT_NIGHT_TARIFF_EUR_KWH,
+            )
+            * 0.88,
+            5,
+        )
+
+    def _hypothetical_negative_price_value(self, options: dict[str, Any]) -> float:
+        """Estimate value lost when export happens during negative spot price."""
         return round(
             _float_state(
                 self.hass,

@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Negative Price Export Guard",
-        "description": "Select the Home Assistant entities used by the optimizer. Tuning values are created as Home Assistant entities and can be adjusted later from the UI.",
+        "description": "Select the Home Assistant entities used by the optimizer. Tuning values are created as Home Assistant entities and can be adjusted later from the UI. The integration can control the configured inverter mode and export power when the export guard switch is enabled.",
         "data": {
           "name": "Name",
           "okte_price_sensor": "OKTE price sensor",
@@ -48,10 +48,15 @@
       "battery_target_soc": { "name": "Battery target SOC" },
       "expected_surplus_today": { "name": "Expected surplus today" },
       "recommended_export_power": { "name": "Recommended export power" },
-      "sell_price": { "name": "Electricity sell price" }
+      "sell_price": { "name": "Electricity sell price" },
+      "exported_energy_during_negative_spot_price": { "name": "Exported energy during negative spot price" },
+      "exported_energy_by_automation": { "name": "Exported energy by automation" },
+      "automation_export_savings": { "name": "Automation export savings" },
+      "negative_price_wasted_potential": { "name": "Negative price wasted potential" }
     },
     "binary_sensor": {
-      "export_wanted": { "name": "Export wanted" }
+      "export_wanted": { "name": "Export wanted" },
+      "export_active": { "name": "Export active" }
     },
     "number": {
       "min_reserve_soc": { "name": "Minimum battery reserve SOC" },
