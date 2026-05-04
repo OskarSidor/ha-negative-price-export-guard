@@ -19,7 +19,12 @@ async def async_setup_entry(
 ) -> None:
     """Set up binary sensors."""
     coordinator: NegativePriceExportGuardCoordinator = entry.runtime_data
-    async_add_entities([ExportWantedBinarySensor(coordinator, entry)])
+    async_add_entities(
+        [
+            ExportWantedBinarySensor(coordinator, entry),
+            ExportActiveBinarySensor(coordinator, entry),
+        ]
+    )
 
 
 class ExportWantedBinarySensor(
@@ -48,3 +53,31 @@ class ExportWantedBinarySensor(
     def is_on(self) -> bool:
         """Return true if export is wanted."""
         return bool(self.coordinator.data.get("export_wanted"))
+
+
+class ExportActiveBinarySensor(
+    CoordinatorEntity[NegativePriceExportGuardCoordinator], BinarySensorEntity
+):
+    """Binary sensor showing whether the integration is controlling export."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "export_active"
+
+    def __init__(
+        self,
+        coordinator: NegativePriceExportGuardCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the binary sensor."""
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_export_active"
+        self._attr_suggested_object_id = "export_optimizer_export_active"
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, entry.entry_id)},
+            "name": entry.title,
+        }
+
+    @property
+    def is_on(self) -> bool:
+        """Return true if export is actively controlled."""
+        return bool(self.coordinator.data.get("export_active"))
