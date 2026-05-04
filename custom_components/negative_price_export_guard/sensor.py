@@ -121,6 +121,38 @@ SENSORS: tuple[ExportGuardSensorEntityDescription, ...] = (
         native_unit_of_measurement="EUR/kWh",
         state_class=SensorStateClass.MEASUREMENT,
     ),
+    ExportGuardSensorEntityDescription(
+        key="exported_energy_during_negative_spot_price",
+        translation_key="exported_energy_during_negative_spot_price",
+        value_key="exported_energy_during_negative_spot_price",
+        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+    ),
+    ExportGuardSensorEntityDescription(
+        key="exported_energy_by_automation",
+        translation_key="exported_energy_by_automation",
+        value_key="exported_energy_by_automation",
+        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+    ),
+    ExportGuardSensorEntityDescription(
+        key="automation_export_savings",
+        translation_key="automation_export_savings",
+        value_key="automation_export_savings",
+        native_unit_of_measurement="EUR",
+        device_class=SensorDeviceClass.MONETARY,
+        state_class=SensorStateClass.TOTAL,
+    ),
+    ExportGuardSensorEntityDescription(
+        key="negative_price_wasted_potential",
+        translation_key="negative_price_wasted_potential",
+        value_key="negative_price_wasted_potential",
+        native_unit_of_measurement="EUR",
+        device_class=SensorDeviceClass.MONETARY,
+        state_class=SensorStateClass.TOTAL,
+    ),
 )
 
 
