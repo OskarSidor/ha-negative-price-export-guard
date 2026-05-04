@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Ochrana exportu pri záporných cenách",
-        "description": "Vyberte entity z Home Assistant, ktoré bude optimalizér používať. Ladiace hodnoty sa vytvoria ako entity v Home Assistant a neskôr ich môžete upravovať priamo z UI.",
+        "description": "Vyberte entity z Home Assistant, ktoré bude optimalizér používať. Ladiace hodnoty sa vytvoria ako entity v Home Assistant a neskôr ich môžete upravovať priamo z UI. Pri zapnutej ochrane exportu môže integrácia riadiť nastavený režim meniča a výkon exportu.",
         "data": {
           "name": "Názov",
           "okte_price_sensor": "Senzor cien OKTE",
@@ -51,7 +51,8 @@
       "sell_price": { "name": "Cena výkupu elektriny" }
     },
     "binary_sensor": {
-      "export_wanted": { "name": "Export požadovaný" }
+      "export_wanted": { "name": "Export požadovaný" },
+      "export_active": { "name": "Export je aktívne riadený" }
     },
     "number": {
       "min_reserve_soc": { "name": "Minimálna rezerva batérie" },
