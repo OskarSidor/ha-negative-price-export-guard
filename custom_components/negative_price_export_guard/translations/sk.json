@@ -48,7 +48,11 @@
       "battery_target_soc": { "name": "Cieľové SOC batérie" },
       "expected_surplus_today": { "name": "Očakávaný prebytok dnes" },
       "recommended_export_power": { "name": "Odporúčaný výkon exportu" },
-      "sell_price": { "name": "Cena výkupu elektriny" }
+      "sell_price": { "name": "Cena výkupu elektriny" },
+      "exported_energy_during_negative_spot_price": { "name": "Exportovaná energia pri zápornej spotovej cene" },
+      "exported_energy_by_automation": { "name": "Energia exportovaná automatizáciou" },
+      "automation_export_savings": { "name": "Úspora z riadeného exportu" },
+      "negative_price_wasted_potential": { "name": "Premrhaný potenciál pri zápornej cene" }
     },
     "binary_sensor": {
       "export_wanted": { "name": "Export požadovaný" },
