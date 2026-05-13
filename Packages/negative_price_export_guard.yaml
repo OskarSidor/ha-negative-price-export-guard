@@ -51,7 +51,6 @@ input_number:
     step: 1
     unit_of_measurement: "%"
     mode: slider
-    initial: 30
 
   export_optimizer_consumption_margin_kwh:
     name: Rezerva odhadu spotreby
@@ -458,6 +457,7 @@ template:
             {% set window_end = today_at('18:00') %}
             {% set cap = states('sensor.inverter_battery_capacity') | float(20) %}
             {% set soc = states('sensor.inverter_battery') | float(0) %}
+            {% set target = states('sensor.export_optimizer_battery_target_soc') | float(95) %}
             {% set battery_now = cap * soc / 100 %}
             {% set threshold = states('input_number.export_optimizer_export_surplus_threshold_kwh') | float(1) %}
             {% set remaining_load = states('sensor.export_optimizer_remaining_solar_window_load_estimate') | float(0) %}
@@ -567,7 +567,11 @@ template:
               {% endif %}
 
               {% if battery_export_allowed %}
-                {% set raw_w = pre_neg_w %}
+                {% if soc > target %}
+                  {% set raw_w = pre_neg_w %}
+                {% else %}
+                  {% set raw_w = [pre_neg_w, live_surplus_w] | min %}
+                {% endif %}
               {% else %}
                 {% set raw_w = [pre_neg_w, live_surplus_w] | min %}
               {% endif %}
@@ -609,7 +613,7 @@ template:
           {% set threshold = states('input_number.export_optimizer_export_surplus_threshold_kwh') | float(1) %}
           {% set export_w = states('sensor.export_optimizer_recommended_export_power') | float(0) %}
           {% set future_negative_today = states('sensor.export_optimizer_negative_price_minutes_until_18') | int(0) > 0 %}
-          {% set soc_ok = soc > target + 2 if battery_export_allowed else true %}
+          {% set soc_ok = soc >= target if battery_export_allowed else true %}
           {{ enabled
              and now() >= today_at('07:00')
              and now() < today_at('18:00')
