@@ -8,8 +8,9 @@ import logging
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
@@ -146,6 +147,7 @@ class NegativePriceExportGuardCoordinator(DataUpdateCoordinator[dict[str, Any]])
             hass, STORAGE_VERSION, f"{DOMAIN}_{entry.entry_id}"
         )
         self._history: dict[str, Any] = {}
+        self._pending_refresh_unsub: CALLBACK_TYPE | None = None
 
     async def async_config_entry_first_refresh(self) -> None:
         """Load storage before the first refresh."""
@@ -163,7 +165,38 @@ class NegativePriceExportGuardCoordinator(DataUpdateCoordinator[dict[str, Any]])
         options = dict(self.config_entry.options)
         options[key] = value
         self.hass.config_entries.async_update_entry(self.config_entry, options=options)
+        self.async_cancel_scheduled_refresh()
         await self.async_request_refresh()
+
+    @callback
+    def async_schedule_refresh(
+        self, delay: float = 5, *, replace: bool = False
+    ) -> None:
+        """Schedule one debounced coordinator refresh."""
+        if self._pending_refresh_unsub is not None:
+            if not replace:
+                return
+            self._pending_refresh_unsub()
+            self._pending_refresh_unsub = None
+
+        @callback
+        def _request_refresh(_now: datetime) -> None:
+            self._pending_refresh_unsub = None
+            self.hass.async_create_task(self.async_request_refresh())
+
+        self._pending_refresh_unsub = async_call_later(
+            self.hass,
+            delay,
+            _request_refresh,
+        )
+
+    @callback
+    def async_cancel_scheduled_refresh(self) -> None:
+        """Cancel a pending debounced refresh."""
+        if self._pending_refresh_unsub is None:
+            return
+        self._pending_refresh_unsub()
+        self._pending_refresh_unsub = None
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Update calculated data."""
