@@ -237,6 +237,7 @@ class NegativePriceExportGuardCoordinator(DataUpdateCoordinator[dict[str, Any]])
             remaining_pv,
             battery_capacity,
             battery_soc,
+            battery_target_soc,
         )
         expected_load_power = self._expected_load_power(now, options, load_curve)
         solar_window_load_average = self._solar_window_load_average()
@@ -249,7 +250,7 @@ class NegativePriceExportGuardCoordinator(DataUpdateCoordinator[dict[str, Any]])
         )
         floor = float(options.get(CONF_PRICE_FLOOR, DEFAULT_PRICE_FLOOR))
         battery_export_allowed = bool(options.get(CONF_ALLOW_BATTERY_EARLY_EXPORT, True))
-        soc_ok = battery_soc > battery_target_soc + 2 if battery_export_allowed else True
+        soc_ok = battery_soc >= battery_target_soc if battery_export_allowed else True
         export_wanted = (
             bool(options.get(CONF_GUARD_ENABLED, True))
             and self._in_solar_window(now, options)
@@ -813,6 +814,7 @@ class NegativePriceExportGuardCoordinator(DataUpdateCoordinator[dict[str, Any]])
         remaining_pv: float,
         battery_capacity: float,
         battery_soc: float,
+        battery_target_soc: float,
     ) -> float:
         """Calculate recommended strategic export power."""
         floor = float(options.get(CONF_PRICE_FLOOR, DEFAULT_PRICE_FLOOR))
@@ -850,20 +852,24 @@ class NegativePriceExportGuardCoordinator(DataUpdateCoordinator[dict[str, Any]])
         available_export = max_w * minutes_before_negative / 60 / 1000
         energy_needed = min(total_excess, available_export)
         raw_w = energy_needed * 1000 / (minutes_before_negative / 60)
+        live_surplus = max(
+            _float_state(self.hass, options.get(CONF_PV_POWER_SENSOR), 0)
+            - _float_state(self.hass, options.get(CONF_LOAD_POWER_SENSOR), 0)
+            - 200,
+            0,
+        )
 
-        if not bool(options.get(CONF_ALLOW_BATTERY_EARLY_EXPORT, True)):
-            live_surplus = max(
-                _float_state(self.hass, options.get(CONF_PV_POWER_SENSOR), 0)
-                - _float_state(self.hass, options.get(CONF_LOAD_POWER_SENSOR), 0)
-                - 200,
-                0,
-            )
+        battery_can_be_used = (
+            bool(options.get(CONF_ALLOW_BATTERY_EARLY_EXPORT, True))
+            and battery_soc > battery_target_soc
+        )
+        if not battery_can_be_used:
             raw_w = min(raw_w, live_surplus)
 
         if raw_w <= 0:
             return 0
         min_w = float(options.get(CONF_MIN_EXPORT_POWER_W, DEFAULT_MIN_EXPORT_POWER_W))
-        if bool(options.get(CONF_ALLOW_BATTERY_EARLY_EXPORT, True)):
+        if battery_can_be_used:
             return min(max(raw_w, min_w), max_w)
         return min(raw_w, max_w)
 
