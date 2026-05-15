@@ -88,7 +88,16 @@ Ak voliteľný pomocník nočného tarifu nie je v custom integrácii nastavený
 
 ### Inštalácia
 
-Použite jeden z týchto spôsobov:
+Odporúčaná inštalácia cez HACS:
+
+1. V HACS otvorte `Integrations`.
+2. Cez menu s tromi bodkami vyberte `Custom repositories`.
+3. Do poľa `Repository` vložte `OskarSidor/ha-negative-price-export-guard` alebo `https://github.com/OskarSidor/ha-negative-price-export-guard`.
+4. Ako kategóriu vyberte `Integration` a repozitár pridajte.
+5. V HACS nainštalujte `Negative Price Export Guard`.
+6. Reštartujte Home Assistant.
+
+Manuálna alternatíva bez HACS:
 
 1. Skopírujte `custom_components/negative_price_export_guard` do:
 
@@ -96,9 +105,7 @@ Použite jeden z týchto spôsobov:
    config/custom_components/negative_price_export_guard
    ```
 
-2. Alebo pridajte tento repozitár ako custom repository v HACS a nainštalujte ho ako integráciu.
-
-Po inštalácii reštartujte Home Assistant.
+2. Reštartujte Home Assistant.
 
 ### Pridanie integrácie
 
