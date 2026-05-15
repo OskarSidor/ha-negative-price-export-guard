@@ -749,6 +749,8 @@ automation:
       - platform: numeric_state
         entity_id: sensor.inverter_battery
         above: 99
+      - platform: time_pattern
+        minutes: "/1"
       - platform: homeassistant
         event: start
     action:
