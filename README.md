@@ -55,12 +55,15 @@ Použite ju hlavne vtedy, ak nechcete custom integráciu alebo si chcete logiku 
 
 ## Screenshoty
 
-Ukážkové screenshoty sú uložené v [`Docs/Screenshots`](Docs/Screenshots). Dokumentácia ich používa ako vizuálnu referenciu pre dashboard s entitami projektu a graf krivky spotreby. Ak pridáte ďalšie screenshoty reálneho výkonu, najlepšie miesta sú:
+Prehľad entít vytvorených projektom:
 
-- prehľad entít vytvorených integráciou alebo YAML balíkom,
-- graf očakávanej krivky spotreby,
-- denný graf PV výroby, batérie a exportu do siete,
-- porovnanie úspory a strateného potenciálu.
+![Prehľad entít Export Optimizéra](Docs/Screenshots/Export_optimizer_entities.png)
+
+Krivka očakávanej spotreby domu:
+
+![Krivka očakávanej spotreby domu](Docs/Screenshots/Krivka_spotreby.png)
+
+Ďalšie vhodné screenshoty reálneho výkonu sú denný graf PV výroby, batérie a exportu do siete alebo porovnanie úspory a strateného potenciálu.
 
 ## Základné ladiace entity custom integrácie
 
