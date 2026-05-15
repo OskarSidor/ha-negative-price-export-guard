@@ -55,12 +55,15 @@ Use it mainly if you do not want the custom integration or if you want to custom
 
 ## Screenshots
 
-Example screenshots are stored in [`Docs/Screenshots`](Docs/Screenshots). The documentation uses them as visual references for the project entity dashboard and the expected load-curve chart. Good places for additional real-performance screenshots are:
+Project entity overview:
 
-- overview of entities created by the integration or YAML package,
-- expected house-load curve chart,
-- daily PV production, battery, and grid export chart,
-- savings and wasted-potential comparison.
+![Export Optimizer entity overview](Docs/Screenshots/Export_optimizer_entities.png)
+
+Expected house-load curve:
+
+![Expected house-load curve](Docs/Screenshots/Krivka_spotreby.png)
+
+Other useful real-performance screenshots would be a daily PV/battery/grid export chart or a savings and wasted-potential comparison.
 
 ## Main Custom Integration Controls
 
