@@ -241,7 +241,7 @@ Nereštartujte, kým kontrola neprejde.
 
 ## 7. Krivka spotreby
 
-`sensor.export_optimizer_solar_window_load_7d_average` obsahuje tieto atribúty:
+`sensor.negative_price_export_guard_priemer_spotreby_v_solarnom_okne_7d` obsahuje tieto atribúty:
 
 | Atribút | Význam |
 |---|---|
@@ -320,8 +320,21 @@ apex_config:
   yaxis:
     title:
       text: W
+    labels:
+      formatter: |
+        EVAL:function(value) {
+          return Math.round(value);
+        }
+  tooltip:
+    x:
+      format: HH:mm
+    "y":
+      formatter: |
+        EVAL:function(value) {
+          return Math.round(value) + " W";
+        }
 series:
-  - entity: sensor.export_optimizer_solar_window_load_7d_average
+  - entity: sensor.negative_price_export_guard_priemer_spotreby_v_solarnom_okne_7d
     name: Očakávaná spotreba
     type: line
     color: "#f59e0b"
@@ -331,12 +344,15 @@ series:
     data_generator: |
       const curve = entity.attributes.load_curve || [];
       const now = new Date();
-      return curve.map((item) => {
+
+      function point(item) {
         const [h, m, s] = (item.start || "00:00:00").split(":").map(Number);
         const date = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, s || 0);
         return [date.getTime(), Number(item.power_w || 0)];
-      });
-  - entity: sensor.export_optimizer_solar_window_load_7d_average
+      }
+
+      return curve.map(point);
+  - entity: sensor.negative_price_export_guard_priemer_spotreby_v_solarnom_okne_7d
     name: Dnes namerané
     type: line
     stroke_width: 2
@@ -346,11 +362,54 @@ series:
     data_generator: |
       const intervals = entity.attributes.today_load_curve?.intervals || [];
       const now = new Date();
-      return intervals.map((item) => {
+
+      function point(item) {
         const [h, m, s] = (item.start || "00:00:00").split(":").map(Number);
         const date = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, s || 0);
         return [date.getTime(), Number(item.consumption_kwh || 0) * 4000];
-      });
+      }
+
+      return intervals.map(point);
+  - entity: sensor.negative_price_export_guard_priemer_spotreby_v_solarnom_okne_7d
+    name: Včera
+    type: line
+    color: "#94a3b8"
+    opacity: 0.4
+    stroke_width: 2
+    show:
+      legend_value: false
+    data_generator: |
+      const day = (entity.attributes.past_load_curves || [])[0];
+      if (!day?.intervals) return [];
+      const now = new Date();
+
+      function point(item) {
+        const [h, m, s] = (item.start || "00:00:00").split(":").map(Number);
+        const date = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, s || 0);
+        return [date.getTime(), Number(item.consumption_kwh || 0.5) * 4000];
+      }
+
+      return day.intervals.map(point);
+  - entity: sensor.export_optimizer_solar_window_load_7d_average
+    name: Predvčerom
+    type: line
+    color: "#94a3b8"
+    opacity: 0.4
+    stroke_width: 2
+    show:
+      legend_value: false
+    data_generator: |
+      const day = (entity.attributes.past_load_curves || [])[1];
+      if (!day?.intervals) return [];
+      const now = new Date();
+
+      function point(item) {
+        const [h, m, s] = (item.start || "00:00:00").split(":").map(Number);
+        const date = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, s || 0);
+        return [date.getTime(), Number(item.consumption_kwh || 0) * 4000];
+      }
+
+      return day.intervals.map(point);
 ```
 
 Série pre predchádzajúce dni môžete doplniť z atribútu `past_load_curves`.

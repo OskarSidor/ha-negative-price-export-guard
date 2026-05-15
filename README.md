@@ -64,10 +64,6 @@ Použite ju hlavne vtedy, ak nechcete custom integráciu alebo si chcete logiku 
 
 ## Screenshoty
 
-Prehľad entít vytvorených projektom:
-
-![Prehľad entít Export Optimizéra](Docs/Screenshots/Export_optimizer_entities.png)
-
 Krivka očakávanej spotreby domu:
 
 ![Krivka očakávanej spotreby domu](Docs/Screenshots/Krivka_spotreby.png)
