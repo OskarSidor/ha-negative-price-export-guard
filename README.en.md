@@ -37,13 +37,20 @@ The most important source entities are OKTE prices, Solcast forecast, daily hous
 
 ## Quick Custom Integration Install
 
-1. Copy `custom_components/negative_price_export_guard` to `config/custom_components/negative_price_export_guard`, or add this repository as a HACS custom repository if you install it that way.
-2. Restart Home Assistant.
-3. Open `Settings -> Devices & services -> Add integration`.
-4. Search for `Negative Price Export Guard`.
-5. Select the required source entities in the setup flow.
-6. After setup, check the created entities starting with `export_optimizer_`.
-7. Start with the guard disabled or with a low maximum export power, then observe behavior during the next negative-price window.
+The recommended path is HACS:
+
+1. In HACS, open `Integrations -> three dots -> Custom repositories`.
+2. Enter `OskarSidor/ha-negative-price-export-guard` or `https://github.com/OskarSidor/ha-negative-price-export-guard` in the `Repository` field.
+3. Select `Integration` as the category and add the repository.
+4. Install `Negative Price Export Guard` from HACS.
+5. Restart Home Assistant.
+6. Open `Settings -> Devices & services -> Add integration`.
+7. Search for `Negative Price Export Guard`.
+8. Select the required source entities in the setup flow.
+9. After setup, check the created entities starting with `export_optimizer_`.
+10. Start with the guard disabled or with a low maximum export power, then observe behavior during the next negative-price window.
+
+Without HACS, copy `custom_components/negative_price_export_guard` to `config/custom_components/negative_price_export_guard`, then restart Home Assistant.
 
 The detailed guide for both the custom integration and the YAML package is in [Docs/Setup.md](Docs/Setup.md).
 
