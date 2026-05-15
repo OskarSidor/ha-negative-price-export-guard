@@ -334,6 +334,9 @@ template:
         entity_id:
           - sensor.inverter_today_production
           - sensor.inverter_today_load_consumption
+          - sensor.inverter_battery
+          - sensor.inverter_pv_power
+          - sensor.inverter_load_power
           - sensor.solcast_pv_forecast_predpoved_dnes
           - sensor.solcast_pv_forecast_predpoved_zostavajuca_dnes
           - sensor.export_optimizer_okte_spotova_cena
@@ -566,19 +569,17 @@ template:
                 {% set pre_neg_w = 0 %}
               {% endif %}
 
-              {% if battery_export_allowed %}
-                {% if soc > target %}
-                  {% set raw_w = pre_neg_w %}
-                {% else %}
-                  {% set raw_w = [pre_neg_w, live_surplus_w] | min %}
-                {% endif %}
+              {% set battery_can_be_used = battery_export_allowed and soc > target %}
+
+              {% if battery_can_be_used %}
+                {% set raw_w = pre_neg_w %}
               {% else %}
                 {% set raw_w = [pre_neg_w, live_surplus_w] | min %}
               {% endif %}
 
               {% if raw_w <= 0 %}
                 0
-              {% elif battery_export_allowed %}
+              {% elif battery_can_be_used %}
                 {{ [[raw_w, min_w] | max, max_w] | min | round(0) }}
               {% else %}
                 {{ [raw_w, max_w] | min | round(0) }}
@@ -596,6 +597,7 @@ template:
           - sensor.export_optimizer_expected_surplus_today
           - sensor.export_optimizer_battery_target_soc
           - sensor.export_optimizer_negative_price_minutes_until_18
+          - sensor.inverter_battery
           - input_boolean.export_optimizer_export_guard_enabled
           - input_boolean.export_optimizer_allow_battery_early_export
     binary_sensor:
