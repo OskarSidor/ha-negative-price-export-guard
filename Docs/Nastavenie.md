@@ -1,8 +1,21 @@
 # Podrobný návod na nastavenie
 
-Tento návod vás prevedie inštaláciou a ladením balíčka na ochranu exportu počas záporných spotových cien v Home Assistant. Hlavný README obsahuje kratšiu verziu; tento súbor je určený najmä na prvé nasadenie, prispôsobenie inému meniču a ladenie.
+Tento návod opisuje oba podporované spôsoby použitia Negative Price Export Guard v Home Assistant.
 
-## 1. Skontrolujte požadované integrácie
+Odporúčaný spôsob je **custom integrácia**. Pri prvom nastavení sa spýta na potrebné entity, overí dôležité jednotky, vytvorí ovládacie entity v UI a logiku drží v Pythone.
+
+Alternatívny spôsob je **YAML package**. Ostáva dostupný pre pokročilých používateľov, ktorí chcú mať celú logiku viditeľnú v YAML, ale vyžaduje ručnú výmenu entity ID a pozornejšiu údržbu.
+
+## 1. Vyberte spôsob nastavenia
+
+| Spôsob | Pre koho je vhodný | Hlavný kompromis |
+|---|---|---|
+| Custom integrácia | Väčšina používateľov | Jednoduchšie nastavenie, UI ovládanie, kontrola entít |
+| YAML package | Pokročilí používatelia | Celá logika je v YAML, ale entity ID sa upravujú ručne |
+
+Neinštalujte oba spôsoby naraz, pokiaľ jeden z nich zámerne nevypnete. Oba môžu ovládať rovnaké entity meniča, takže súčasné spustenie by bolo neprehľadné a potenciálne nebezpečné.
+
+## 2. Požadované integrácie
 
 ### OKTE ceny
 
@@ -10,13 +23,19 @@ Odporúčaná integrácia:
 
 - [OKTE DAM](https://github.com/rgildein/okte-home-assistant)
 
-Balík očakáva entitu s OKTE cenami, napríklad:
+Požiadavky:
 
-```yaml
+- senzor s aktuálnymi alebo budúcimi OKTE cenami,
+- atribút `prices` s 15-minútovými obdobiami,
+- ceny v `EUR/MWh`.
+
+Predvolená entita projektu je:
+
+```text
 sensor.okte_ceny_elektriny_prices
 ```
 
-Táto entita musí mať atribút `prices`, ktorý obsahuje 15-minútové obdobia s časmi a cenami. Balík počíta aktuálnu cenu z tohto atribútu, pretože stav senzora sa môže aktualizovať neskôr ako reálna 15-minútová hranica ceny.
+Optimalizér počíta aktuálnu cenu z atribútu `prices`, pretože stav pôvodného senzora sa môže aktualizovať neskôr ako reálna 15-minútová hranica ceny.
 
 ### Solcast predpoveď výroby
 
@@ -24,168 +43,198 @@ Odporúčaná integrácia:
 
 - [Solcast Solar](https://github.com/BJReplay/ha-solcast-solar)
 
-Balík očakáva dve Solcast entity:
+Požadované entity:
 
-```yaml
+```text
 sensor.solcast_pv_forecast_predpoved_dnes
 sensor.solcast_pv_forecast_predpoved_zostavajuca_dnes
 ```
 
-Prvá entita musí mať atribút `detailedForecast`; druhá má predstavovať zostávajúcu predpoveď výroby pre dnešok v kWh. Detailná predpoveď sa používa na časovanie okolo najbližšieho záporného cenového okna a zostávajúca výroba na výpočet denného prebytku a zostávajúcej kapacity batérie.
+Prvá entita musí mať atribút `detailedForecast`. Druhá entita má predstavovať zostávajúcu predpoveď výroby pre dnešok v `kWh`.
 
 ### Integrácia meniča
 
-Balík vznikol okolo entít typu Deye/Solarman.
+Projekt vznikol okolo entít typu Deye/Solarman.
 
 Odporúčaná Solarman integrácia:
 
 - [ha-solarman](https://github.com/davidrapan/ha-solarman)
 
-Home Assistant musí vedieť minimálne čítať SOC batérie, PV výkon, spotrebu domu, dennú PV výrobu, dennú spotrebu domu, celkový export do siete, aktuálne nastavenia exportu a musí vedieť meniť režim meniča a nastavovať limit exportu do siete.
+Home Assistant musí vedieť čítať SOC batérie, PV výkon, spotrebu domu, dennú výrobu, dennú spotrebu, celkový export do siete, aktuálne nastavenia exportu, režim meniča a limity exportného výkonu.
 
-## 2. Povoľte Home Assistant packages
+## 3. Požadované zdrojové entity
 
-Ak ešte nepoužívate packages, pridajte do `configuration.yaml`:
+| Účel | Predvolená entita | Očakávaná jednotka/doména |
+|---|---|---|
+| OKTE ceny s atribútom `prices` | `sensor.okte_ceny_elektriny_prices` | `EUR/MWh` |
+| Solcast predpoveď dnes s `detailedForecast` | `sensor.solcast_pv_forecast_predpoved_dnes` | `kWh` |
+| Solcast zostávajúca výroba dnes | `sensor.solcast_pv_forecast_predpoved_zostavajuca_dnes` | `kWh` |
+| Denná spotreba domu | `sensor.inverter_today_load_consumption` | `kWh` |
+| Celkový export do siete | `sensor.inverter_total_energy_export` | `kWh` |
+| Denná PV výroba | `sensor.inverter_today_production` | `kWh` |
+| SOC batérie | `sensor.inverter_battery` | `%` |
+| Kapacita batérie | `sensor.inverter_battery_capacity` | `kWh` |
+| Aktuálny PV výkon | `sensor.inverter_pv_power` | `W` |
+| Aktuálna spotreba domu | `sensor.inverter_load_power` | `W` |
+| Režim meniča | `select.inverter_work_mode` | `select` |
+| Prepínač exportu PV prebytkov | `switch.inverter_export_surplus` | `switch` |
+| Aktuálny limit exportu do siete | `number.inverter_export_surplus_power` | `W` |
+| Maximálny povolený export meniča alebo siete | `number.solarny_menic_grid_max_export_power` | `W` |
+| Voliteľný nočný tarif pre odhad hodnoty energie | `input_number.cena_elektriny_nocny_tarif` | `EUR/kWh` |
+
+Ak voliteľný pomocník nočného tarifu nie je v custom integrácii nastavený, integrácia použije fallback `0.054 EUR/kWh`.
+
+## 4. Nastavenie custom integrácie odporúčané
+
+### Inštalácia
+
+Použite jeden z týchto spôsobov:
+
+1. Skopírujte `custom_components/negative_price_export_guard` do:
+
+   ```text
+   config/custom_components/negative_price_export_guard
+   ```
+
+2. Alebo pridajte tento repozitár ako custom repository v HACS a nainštalujte ho ako integráciu.
+
+Po inštalácii reštartujte Home Assistant.
+
+### Pridanie integrácie
+
+V Home Assistant:
+
+```text
+Nastavenia -> Zariadenia a služby -> Pridať integráciu -> Negative Price Export Guard
+```
+
+V sprievodcovi vyberte zdrojové entity. Formulár obsahuje predvolené entity ID a veľa rozbaľovacích polí filtruje podľa očakávanej domény alebo device class, takže správne entity by sa mali hľadať ľahšie.
+
+Sprievodca overí:
+
+- či existujú povinné entity,
+- či OKTE senzor má atribút `prices`,
+- či Solcast predpoveď má atribút `detailedForecast`,
+- či energetické senzory používajú `kWh`,
+- či výkonové senzory a exportné čísla používajú `W`,
+- či SOC batérie používa `%`.
+
+### Vytvorené entity
+
+Integrácia vytvára entity s objektovým ID `export_optimizer_`. Dôležité príklady:
+
+| Entita | Význam |
+|---|---|
+| `switch.export_optimizer_guard_enabled` | Hlavné zapnutie alebo vypnutie aktívneho riadenia meniča |
+| `switch.export_optimizer_allow_battery_early_export` | Povolenie skorého strategického exportu z batérie |
+| `binary_sensor.export_optimizer_export_wanted` | Či integrácia požaduje `Export First` |
+| `binary_sensor.export_optimizer_export_active` | Či integrácia práve aktívne riadi export |
+| `number.export_optimizer_min_reserve_soc` | Minimálna rezerva batérie |
+| `number.export_optimizer_consumption_margin_kwh` | Bezpečnostná rezerva odhadu spotreby |
+| `number.export_optimizer_typical_idle_power_w` | Minimálna spotreba domu vrátane vlastnej spotreby meniča |
+| `number.export_optimizer_export_surplus_threshold_kwh` | Minimálny očakávaný prebytok pred zásahom |
+| `number.export_optimizer_min_export_power_w` | Minimálny exportný výkon pri povolenom exporte z batérie |
+| `number.export_optimizer_max_export_power_w` | Maximálny riadený exportný výkon |
+| `number.export_optimizer_price_floor` | Cenová hranica, pod ktorou je export nežiaduci |
+| `time.export_optimizer_solar_window_start` | Začiatok denného učiaceho a riadiaceho okna |
+| `time.export_optimizer_solar_window_end` | Koniec denného učiaceho a riadiaceho okna |
+| `sensor.export_optimizer_recommended_export_power` | Odporúčaný strategický exportný výkon |
+| `sensor.export_optimizer_expected_load_power` | Aktuálny očakávaný výkon spotreby z krivky |
+| `sensor.export_optimizer_solar_window_load_7d_average` | 7d priemer a atribúty krivky spotreby |
+
+![Prehľad entít projektu](Screenshots/Export_optimizer_entities.png)
+
+### Odporúčané prvé hodnoty
+
+Začnite konzervatívne:
+
+| Entita | Odporúčaná hodnota |
+|---|---:|
+| `number.export_optimizer_min_reserve_soc` | `30-40` |
+| `number.export_optimizer_consumption_margin_kwh` | `1-2` |
+| `number.export_optimizer_typical_idle_power_w` | bežný základný odber, napríklad `200-700 W` |
+| `number.export_optimizer_export_surplus_threshold_kwh` | `1` |
+| `number.export_optimizer_min_export_power_w` | `500 W` |
+| `number.export_optimizer_max_export_power_w` | začnite nízko a zvyšujte postupne |
+| `number.export_optimizer_price_floor` | `0 EUR/MWh` |
+
+Nechajte `switch.export_optimizer_guard_enabled` vypnutý, kým neskontrolujete vypočítané senzory. Potom ho zapnite na reálne testovacie okno.
+
+## 5. Nastavenie YAML package manuálne
+
+Túto cestu použite iba vtedy, ak chcete YAML implementáciu.
+
+### Povolenie packages
+
+V `configuration.yaml`:
 
 ```yaml
 homeassistant:
   packages: !include_dir_named packages
 ```
 
-Potom vytvorte priečinok:
+Ak treba, vytvorte priečinok:
 
 ```text
 config/packages
 ```
 
-Do neho skopírujte package súbor:
+Skopírujte:
+
+```text
+Packages/negative_price_export_guard.yaml
+```
+
+do:
 
 ```text
 config/packages/negative_price_export_guard.yaml
 ```
 
-## 3. Vytvorte pomocníka pre hodnotu energie
+### Úprava entity ID
 
-Balík očakáva tohto pomocníka:
+Otvorte YAML súbor a nahraďte všetky predvolené zdrojové entity vlastnými entity ID. Nepoužívajte `input_text` na nepriame pomenovanie entít v triggeroch. Home Assistant triggery potrebujú reálne entity ID priamo v YAML.
 
-```yaml
-input_number.cena_elektriny_nocny_tarif
-```
+YAML package vytvára `input_number`, `input_boolean`, `input_datetime`, template senzory, binary senzory a automatizácie. Custom integrácia namiesto toho vytvára `number`, `switch`, `time`, `sensor` a `binary_sensor` entity.
 
-Vytvorte ho cez používateľské rozhranie Home Assistant:
+### Kontrola konfigurácie
 
-```text
-Nastavenia -> Zariadenia a služby -> Pomocníci -> Vytvoriť pomocníka -> Číslo
-```
-
-Odporúčané nastavenie:
-
-| Pole | Hodnota |
-|---|---|
-| Názov | Cena elektriny nočný tarif |
-| Minimum | `0` |
-| Maximum | hodnota vyššia ako váš tarif, napríklad `1` |
-| Krok | `0.001` |
-| Jednotka | `EUR/kWh` |
-| Režim | box |
-
-Táto hodnota sa používa na odhad toho, akú hodnotu by exportovaná energia mala, keby sa započítala do virtuálnej batérie. Ak si nie ste istí, začnite približnou hodnotou vášho nočného tarifu v EUR/kWh.
-
-## 4. Namapujte svoje entity
-
-Otvorte `negative_price_export_guard.yaml` a skontrolujte každú entitu v časti očakávaných entít.
-
-| Účel | Predvolená entita |
-|---|---|
-| OKTE ceny | `sensor.okte_ceny_elektriny_prices` |
-| Solcast predpoveď dnes s detailnou predpoveďou | `sensor.solcast_pv_forecast_predpoved_dnes` |
-| Solcast zostávajúca výroba dnes | `sensor.solcast_pv_forecast_predpoved_zostavajuca_dnes` |
-| Denná spotreba domu | `sensor.inverter_today_load_consumption` |
-| Celkový export do siete | `sensor.inverter_total_energy_export` |
-| Denná PV výroba | `sensor.inverter_today_production` |
-| SOC batérie | `sensor.inverter_battery` |
-| Kapacita batérie | `sensor.inverter_battery_capacity` |
-| Aktuálny PV výkon | `sensor.inverter_pv_power` |
-| Aktuálna spotreba domu | `sensor.inverter_load_power` |
-| Výber režimu meniča | `select.inverter_work_mode` |
-| Prepínač exportu PV prebytkov | `switch.inverter_export_surplus` |
-| Limit výkonu exportu | `number.inverter_export_surplus_power` |
-| Maximálny povolený export meniča alebo siete | `number.solarny_menic_grid_max_export_power` |
-| Pomocník hodnoty energie | `input_number.cena_elektriny_nocny_tarif` |
-
-Ak sa vaše entity volajú inak, nahraďte všetky výskyty v package súbore. Nepokúšajte sa ukladať entity ID do `input_text` pomocníkov pre triggery; Home Assistant triggery potrebujú reálne entity ID priamo v YAML.
-
-## 5. Skontrolujte jednotky
-
-Balík predpokladá:
-
-| Entita | Očakávaná jednotka |
-|---|---|
-| `sensor.inverter_pv_power` | W |
-| `sensor.inverter_load_power` | W |
-| `number.inverter_export_surplus_power` | W |
-| `number.solarny_menic_grid_max_export_power` | W |
-| `sensor.inverter_today_load_consumption` | kWh |
-| `sensor.inverter_today_production` | kWh |
-| `sensor.inverter_total_energy_export` | kWh |
-| `sensor.solcast_pv_forecast_predpoved_zostavajuca_dnes` | kWh |
-| `sensor.inverter_battery` | % |
-| `sensor.inverter_battery_capacity` | kWh |
-
-Ak váš menič poskytuje výkon v kW namiesto W, musíte upraviť výpočty používajúce PV výkon, spotrebu domu a exportný výkon.
-
-## 6. Skontrolujte názvy režimov meniča
-
-Balík očakáva tieto presné možnosti v `select.inverter_work_mode`:
-
-```text
-Export First
-Zero Export To CT
-```
-
-Skontrolujte ich vo Vývojárskych nástrojoch Home Assistant. Ak váš menič používa iné názvy možností, upravte akcie automatizácie.
-
-## 7. Spustite kontrolu konfigurácie
-
-V Home Assistant:
+Pred reštartom:
 
 ```text
 Nastavenia -> Vývojárske nástroje -> YAML -> Skontrolovať konfiguráciu
 ```
 
-Nereštartujte Home Assistant, kým kontrola neprejde. Najčastejšie príčiny chyby sú nesprávne entity ID, duplicitné YAML kľúče, nesprávne odsadenie, neplatné voľby pod YAML helpermi a názvy režimov meniča, ktoré nesedia s vašou integráciou.
+Nereštartujte, kým kontrola neprejde.
 
-## 8. Reštartujte a skontrolujte entity
+### YAML ovládacie entity
 
-Po reštarte overte externé entity vyššie a vyhľadajte entity vytvorené balíkom, ktoré začínajú na:
+| YAML entita | Význam |
+|---|---|
+| `input_boolean.export_optimizer_export_guard_enabled` | Hlavné zapnutie alebo vypnutie |
+| `input_boolean.export_optimizer_allow_battery_early_export` | Povolenie skorého exportu z batérie |
+| `input_number.export_optimizer_min_reserve_soc` | Minimálna rezerva batérie |
+| `input_number.export_optimizer_consumption_margin_kwh` | Rezerva odhadu spotreby |
+| `input_number.export_optimizer_typical_idle_power_w` | Minimálna očakávaná spotreba domu |
+| `input_number.export_optimizer_max_export_power_w` | Maximálny riadený exportný výkon |
+| `input_number.export_optimizer_price_floor` | Cenová hranica exportu |
 
-```text
-export_optimizer_
-```
+## 6. Ako logika funguje
 
-Najdôležitejšie vytvorené entity sú:
+1. Systém zaznamená počítadlo spotreby domu na začiatku solárneho okna.
+2. Každých 15 minút počas solárneho okna uloží spotrebu za predchádzajúci interval.
+3. Na konci solárneho okna uloží dokončenú dennú krivku.
+4. Drží najviac 7 dní kriviek a vytvára priemernú 15-minútovú `load_curve`.
+5. Odhaduje zostávajúcu spotrebu z krivky, bezpečnostnej rezervy a minimálneho základného odberu.
+6. Kombinuje zostávajúcu spotrebu, Solcast zostávajúcu výrobu, SOC a kapacitu batérie.
+7. Ak sa očakáva budúci záporný cenový blok, vypočíta potrebný export pred týmto blokom.
+8. Ak je export z batérie vypnutý alebo SOC je na cieľovej hodnote či nižšie, odporúčaný export sa obmedzí na živý PV prebytok a nevynucuje minimálny exportný výkon.
+9. Ak je aktuálna cena pod hranicou, menič ostáva v `Zero Export To CT`.
+10. Ak je batéria plná, exportný limit sa môže zvýšiť, aby sa znížilo krátenie PV výroby.
 
-```text
-sensor.export_optimizer_okte_spotova_cena
-sensor.export_optimizer_solar_window_load_7d_average
-sensor.export_optimizer_expected_load_power
-sensor.export_optimizer_remaining_solar_window_load_estimate
-sensor.export_optimizer_recommended_export_power
-sensor.export_optimizer_expected_surplus_today
-binary_sensor.export_optimizer_export_wanted
-input_boolean.export_optimizer_export_guard_enabled
-input_boolean.export_optimizer_allow_battery_early_export
-input_boolean.export_optimizer_export_guard_active
-input_number.export_optimizer_typical_idle_power_w
-```
+## 7. Krivka spotreby
 
-Starší balíkom vytvorený senzor `sensor.export_optimizer_remaining_pv_forecast_today` sa už nepoužíva. Balík teraz používa priamo Solcast senzor zostávajúcej výroby.
-
-## 9. Správanie počas prvého dňa a učenie
-
-Balík zaznamená stav počítadla spotreby domu o 07:00. Počas solárneho okna 07:00-18:00 uloží každých 15 minút prírastok spotreby za predchádzajúci interval. O 18:00 uloží dokončenú dennú krivku a drží posledných sedem dokončených denných kriviek.
-
-`sensor.export_optimizer_solar_window_load_7d_average` má tieto učiace atribúty:
+`sensor.export_optimizer_solar_window_load_7d_average` obsahuje tieto atribúty:
 
 | Atribút | Význam |
 |---|---|
@@ -193,10 +242,10 @@ Balík zaznamená stav počítadla spotreby domu o 07:00. Počas solárneho okna
 | `today_load_curve` | Dnešné zatiaľ namerané 15-minútové intervaly |
 | `past_load_curves` | Posledných 7 dokončených denných 15-minútových kriviek |
 | `load_curve` | Priemerná 15-minútová krivka používaná optimalizérom |
-| `last_interval_total_kwh` | Interný stav počítadla pre ďalší intervalový rozdiel |
-| `current_interval_index` | Aktuálny 15-minútový interval v okne 07:00-18:00 |
+| `last_interval_total_kwh` | Interný stav počítadla |
+| `current_interval_index` | Aktuálny 15-minútový interval v solárnom okne |
 
-Položky v `load_curve` vyzerajú približne takto:
+Príklad položky krivky:
 
 ```yaml
 index: 0
@@ -207,147 +256,13 @@ power_w: 480
 samples: 4
 ```
 
-`consumption_kwh` je očakávaná spotreba v danom 15-minútovom intervale. `power_w` je rovnaká hodnota prepočítaná na priemerný výkon vo wattoch, aby sa ľahšie zobrazovala v dashboarde a používala vo výpočtoch.
+![Krivka očakávanej spotreby](Screenshots/Krivka_spotreby.png)
 
-Prvý deň má balík málo alebo žiadnu históriu. Preto používa fallback z denného priemeru rozloženého cez celé solárne okno. Krivka sa zlepšuje po každom dokončenom dni a najviac užitočná bude približne po týždni.
+## 8. Dashboard karty
 
-## 10. Plánovanie podľa krivky spotreby
+### Prehľad entít cez Auto Entities
 
-Balík už nepredpokladá, že spotreba domu je počas solárneho okna rovnomerná. Tieto senzory používajú 15-minútovú krivku:
-
-| Entita | Ako používa krivku |
-|---|---|
-| `sensor.export_optimizer_expected_load_power` | Zobrazuje očakávaný výkon spotreby domu pre aktuálny 15-minútový interval |
-| `sensor.export_optimizer_remaining_solar_window_load_estimate` | Spočíta zostávajúce intervaly z `load_curve` a pridá bezpečnostnú rezervu |
-| `sensor.export_optimizer_expected_surplus_today` | Používa presnejší odhad zostávajúcej spotreby pred výpočtom prebytku |
-| `sensor.export_optimizer_recommended_export_power` | Používa presnejší odhad spotreby pri rozhodovaní, či exportovať pred záporným cenovým blokom |
-
-Toto je užitočné hlavne v domoch s pravidelnými dennými špičkami, napríklad varenie, ohrev vody, cykly tepelného čerpadla alebo nabíjanie EV/PHEV počas solárneho okna.
-
-## 11. Odporúčané úvodné ladenie
-
-Začnite konzervatívne:
-
-| Pomocník | Odporúčaná hodnota |
-|---|---:|
-| `input_number.export_optimizer_min_reserve_soc` | `40` |
-| `input_number.export_optimizer_consumption_margin_kwh` | `2` |
-| `input_number.export_optimizer_typical_idle_power_w` | `200-500` |
-| `input_number.export_optimizer_export_surplus_threshold_kwh` | `1` |
-| `input_number.export_optimizer_min_export_power_w` | `500` |
-| `input_number.export_optimizer_max_export_power_w` | `3000` |
-| `input_number.export_optimizer_price_floor` | `0` |
-
-Typická minimálna spotreba by mala zahŕňať bežnú minimálnu spotrebu domu a vlastnú spotrebu meniča počas zvyšku solárneho okna. Zabraňuje tomu, aby odhad zostávajúcej spotreby klesol nereálne na nulu príliš skoro počas dňa.
-
-## 12. Logika očakávaného prebytku
-
-`sensor.export_optimizer_expected_surplus_today` odhaduje iba energiu, ktorá bude pravdepodobne skutočný prebytok po zohľadnení:
-
-- zostávajúcej Solcast výroby,
-- odhadovanej zostávajúcej spotreby v solárnom okne podľa 15-minútovej krivky,
-- zostávajúcej kapacity batérie na nabíjanie.
-
-Preto môže senzor zostať na hodnote `0` aj počas slnečného dňa, ak má batéria stále dosť voľnej kapacity na očakávanú PV výrobu.
-
-## 13. Režim šetrenia batérie
-
-Ak vypnete:
-
-```text
-input_boolean.export_optimizer_allow_battery_early_export
-```
-
-odporúčaný výkon exportu sa obmedzí na aktuálny živý PV prebytok:
-
-```text
-PV výkon - spotreba domu - 200 W
-```
-
-V tomto režime balík nevynucuje `input_number.export_optimizer_min_export_power_w`, pretože by to pri malom PV prebytku mohlo vybíjať batériu.
-
-## 14. Ochrana proti obmedzovaniu PV pri plnej batérii
-
-Keď je batéria nad 99 %, `switch.inverter_export_surplus` je zapnutý, menič je v režime `Zero Export To CT` a strategický export nie je požadovaný, balík nastaví:
-
-```text
-number.inverter_export_surplus_power = min(
-  number.solarny_menic_grid_max_export_power,
-  input_number.export_optimizer_max_export_power_w
-)
-```
-
-Pomáha to obmedziť zbytočné krátenie PV výroby pri plnej batérii. Táto vetva rešpektuje `input_boolean.export_optimizer_export_guard_enabled` a podľa potreby vypne `input_boolean.export_optimizer_export_guard_active`.
-
-## 15. Ako ladiť nastavenia
-
-### Ak sa energia stále exportuje počas záporných cien
-
-Skúste postupne:
-
-- Skontrolovať, či `sensor.export_optimizer_expected_load_power` vyzerá realisticky pre aktuálny čas dňa.
-- Zvýšiť `input_number.export_optimizer_max_export_power_w`, ak to menič a pripojenie povoľujú.
-- Zapnúť `input_boolean.export_optimizer_allow_battery_early_export`, ak je režim šetrenia batérie príliš obmedzujúci.
-- Skontrolovať, či Solcast nepodhodnocuje výrobu alebo či entity kapacity/SOC batérie nie sú nepresné.
-- Zvýšiť `input_number.export_optimizer_export_surplus_threshold_kwh` iba vtedy, ak chcete reagovať na väčšie očakávané prebytky.
-
-Nezvyšujte automaticky `input_number.export_optimizer_consumption_margin_kwh`: vyššia rezerva spotreby hovorí algoritmu, že očakáva viac lokálnej spotreby, čo môže znížiť skorý export.
-
-### Ak sa batéria vybíja príliš veľa
-
-Zvýšte:
-
-```text
-input_number.export_optimizer_min_reserve_soc
-```
-
-alebo vypnite:
-
-```text
-input_boolean.export_optimizer_allow_battery_early_export
-```
-
-### Ak sa PV výkon obmedzuje pri plnej batérii
-
-Najprv skontrolujte:
-
-```text
-switch.inverter_export_surplus
-number.solarny_menic_grid_max_export_power
-input_number.export_optimizer_max_export_power_w
-```
-
-Potom zvýšte `input_number.export_optimizer_max_export_power_w`, ak to váš menič a pripojenie povoľujú.
-
-## 16. Odporúčaný dashboard
-
-Jednoduchý debug dashboard by mal obsahovať:
-
-```text
-sensor.export_optimizer_okte_spotova_cena
-sensor.export_optimizer_negative_price_minutes_until_18
-sensor.export_optimizer_solar_window_load_7d_average
-sensor.export_optimizer_expected_load_power
-sensor.export_optimizer_remaining_solar_window_load_estimate
-sensor.export_optimizer_recommended_export_power
-binary_sensor.export_optimizer_export_wanted
-input_boolean.export_optimizer_export_guard_enabled
-input_boolean.export_optimizer_allow_battery_early_export
-input_boolean.export_optimizer_export_guard_active
-sensor.export_optimizer_expected_surplus_today
-sensor.export_optimizer_battery_target_soc
-input_number.export_optimizer_typical_idle_power_w
-switch.inverter_export_surplus
-number.inverter_export_surplus_power
-number.solarny_menic_grid_max_export_power
-select.inverter_work_mode
-sensor.inverter_battery
-sensor.inverter_pv_power
-sensor.inverter_load_power
-sensor.solcast_pv_forecast_predpoved_zostavajuca_dnes
-```
-
-Na jednoduchšie vytvorenie karty použite [auto-entities](https://github.com/thomasloven/lovelace-auto-entities), aby Home Assistant automaticky zobrazil všetky entity vytvorené týmto projektom. Karta `custom:auto-entities` musí byť v Home Assistant nainštalovaná, napríklad cez HACS.
+Najprv nainštalujte [auto-entities](https://github.com/thomasloven/lovelace-auto-entities).
 
 ```yaml
 type: custom:auto-entities
@@ -360,56 +275,145 @@ filter:
     - entity_id: /export_optimizer/
       sort:
         method: entity_id
-  exclude:
-    - options: {}
-      entity_id: input_number.export_optimizer_solar_window_start_load_kwh
-    - options: {}
-      entity_id: input_datetime.export_optimizer_solar_window_start_recorded
 ```
 
-Karta filtruje entity podľa `export_optimizer` v entity ID a skryje dvoch technických pomocníkov pre ranný záznam spotreby, ktoré bežne netreba ručne upravovať.
+Pri YAML package môžete skryť technických pomocníkov, ktorých bežne netreba upravovať:
 
-## 17. Účtovné senzory
+```yaml
+filter:
+  exclude:
+    - entity_id: input_number.export_optimizer_solar_window_start_load_kwh
+    - entity_id: input_datetime.export_optimizer_solar_window_start_recorded
+```
 
-Balík vytvára kumulatívne senzory na sledovanie výsledkov:
+### Krivka spotreby cez ApexCharts
+
+Najprv nainštalujte [apexcharts-card](https://github.com/RomRider/apexcharts-card).
+
+```yaml
+type: custom:apexcharts-card
+header:
+  show: true
+  title: Krivka očakávanej spotreby domu počas dňa
+  show_states: false
+graph_span: 11h
+span:
+  start: day
+  offset: +7h
+now:
+  show: true
+  label: Teraz
+apex_config:
+  chart:
+    height: 300
+  legend:
+    show: true
+  stroke:
+    curve: smooth
+  yaxis:
+    title:
+      text: W
+series:
+  - entity: sensor.export_optimizer_solar_window_load_7d_average
+    name: Očakávaná spotreba
+    type: line
+    color: "#f59e0b"
+    stroke_width: 4
+    show:
+      legend_value: false
+    data_generator: |
+      const curve = entity.attributes.load_curve || [];
+      const now = new Date();
+      return curve.map((item) => {
+        const [h, m, s] = (item.start || "00:00:00").split(":").map(Number);
+        const date = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, s || 0);
+        return [date.getTime(), Number(item.power_w || 0)];
+      });
+  - entity: sensor.export_optimizer_solar_window_load_7d_average
+    name: Dnes namerané
+    type: line
+    stroke_width: 2
+    opacity: 0.9
+    show:
+      legend_value: false
+    data_generator: |
+      const intervals = entity.attributes.today_load_curve?.intervals || [];
+      const now = new Date();
+      return intervals.map((item) => {
+        const [h, m, s] = (item.start || "00:00:00").split(":").map(Number);
+        const date = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, s || 0);
+        return [date.getTime(), Number(item.consumption_kwh || 0) * 4000];
+      });
+```
+
+Série pre predchádzajúce dni môžete doplniť z atribútu `past_load_curves`.
+
+## 9. Účtovné senzory
+
+Projekt vystavuje kumulatívne senzory výsledkov:
 
 | Entita | Význam |
 |---|---|
 | `sensor.export_optimizer_exported_energy_during_negative_spot_price` | kWh exportované počas záporných spotových cien |
-| `sensor.export_optimizer_exported_energy_by_automation` | kWh exportované počas aktívneho riadenia automatizáciou |
-| `sensor.export_optimizer_automation_export_savings` | Odhad hodnoty zachránenej automatizáciou |
-| `sensor.export_optimizer_negative_price_wasted_potential` | Odhad hodnoty stratenej exportom počas záporných cien |
+| `sensor.export_optimizer_exported_energy_by_automation` | kWh exportované počas aktívneho riadenia |
+| `sensor.export_optimizer_automation_export_savings` | Odhad zachránenej hodnoty |
+| `sensor.export_optimizer_negative_price_wasted_potential` | Odhad stratenej hodnoty počas záporných cien |
 
-Tieto senzory sú kumulatívne. Na denné hodnoty použite grafy alebo štatistiky, ktoré počítajú denný rozdiel.
+Na denné hodnoty použite grafy alebo štatistiky, ktoré počítajú denný rozdiel.
 
-## 18. Poznámky k výkonu Home Assistant
+## 10. Riešenie problémov
 
-Balík používa trigger-based template senzory zámerne. Vyhnite sa tomu, aby ste tieto šablóny zmenili na bežné template senzory bez triggerov, ak obsahujú:
+### Spotová cena nesedí s aktuálnym časom
+
+Použite `sensor.export_optimizer_okte_spot_price` v custom integrácii alebo `sensor.export_optimizer_okte_spotova_cena` v YAML package. Tieto senzory čítajú OKTE atribút `prices`.
+
+### Batéria sa vybíja viac, ako chcete
+
+Zvýšte minimálnu rezervu SOC alebo vypnite skorý export z batérie:
 
 ```text
-now()
-today_at()
-state_attr(... prices ...)
-state_attr(... detailedForecast ...)
+switch.export_optimizer_allow_battery_early_export
 ```
 
-Krivka spotreby je tiež trigger-based a aktualizuje sa každých 15 minút. Je to zámerné: uchováva užitočnú históriu bez toho, aby sa veľké šablóny prepočítavali každú minútu.
+Pri YAML package je ekvivalent:
 
-## 19. Bezpečnostný checklist
+```text
+input_boolean.export_optimizer_allow_battery_early_export
+```
 
-Predtým, než necháte automatizáciu bežať bez dozoru:
+### PV sa kráti pri plnej batérii
 
-- Overte, že prepínanie režimu meniča funguje správne.
-- Overte, že exportné limity sú primerané pre váš menič a pripojenie do siete.
-- Overte, že záporné spotové ceny vracajú menič do `Zero Export To CT`.
-- Overte, že `sensor.export_optimizer_okte_spotova_cena` zodpovedá reálnemu aktuálnemu OKTE obdobiu.
-- Overte, že Solcast senzor zostávajúcej výroby má očakávanú jednotku a hodnotu.
-- Overte, že `sensor.export_optimizer_expected_load_power` je po pár dňoch učenia realistický.
-- Overte, že rezerva batérie je dostatočná pre vašu domácnosť.
-- Začnite s nízkym maximálnym exportným výkonom a zvyšujte ho postupne.
+Skontrolujte:
 
-## 20. Prispôsobenie iným krajinám alebo dodávateľom
+```text
+switch.inverter_export_surplus
+number.inverter_export_surplus_power
+number.solarny_menic_grid_max_export_power
+number.export_optimizer_max_export_power_w
+```
 
-Myšlienka nie je striktne slovenská, ale zdroj cien a pravidlá dodávateľa sú lokálne. Pri použití inde bude treba nahradiť entitu so spotovými cenami, parsovanie cien, výpočet hodnoty energie, názvy režimov meniča, entity riadenia exportu a prípadne solárne okno.
+Pri YAML package je projektové maximum:
 
-Základná myšlienka ostáva rovnaká: vytvoriť miesto v batérii pred záporným cenovým oknom, vyhnúť sa strategickému exportu počas záporných cien, zabrániť zbytočnému kráteniu PV výroby tam, kde to dáva zmysel, naučiť sa dennú krivku spotreby domu a sledovať, či je nastavenie dobre naladené.
+```text
+input_number.export_optimizer_max_export_power_w
+```
+
+### Home Assistant má vysoké CPU využitie
+
+Nemeňte trigger-based šablóny s `now()`, `today_at()`, `prices` alebo `detailedForecast` na template senzory bez triggerov. YAML package používa trigger-based šablóny zámerne, aby sa veľké výpočty neprepočítavali stále. Custom integrácia používa entity listenery a plánované refresh intervaly.
+
+## 11. Bezpečnostný checklist
+
+Predtým, než necháte aktívne riadenie bežať bez dozoru:
+
+- Overte, že zvolené entity meniča sú správne.
+- Overte, že `Export First` a `Zero Export To CT` fungujú na vašom meniči očakávane.
+- Overte, že exportné limity sú bezpečné pre menič a pripojenie do siete.
+- Overte, že OKTE senzor zodpovedá reálnemu aktuálnemu cenovému obdobiu.
+- Overte, že Solcast zostávajúca výroba je realistická.
+- Overte, že krivka očakávanej spotreby je po pár dňoch učenia rozumná.
+- Začnite s nízkym maximálnym exportným výkonom a zvyšujte postupne.
+
+## 12. Prispôsobenie iným krajinám alebo dodávateľom
+
+Základná myšlienka nie je striktne slovenská, ale zdroj cien a pravidlá dodávateľa sú lokálne. Pri použití inde treba nahradiť zdroj spotových cien, výpočet hodnoty energie, názvy režimov meniča, entity riadenia exportu a prípadne solárne okno.
