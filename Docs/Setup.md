@@ -88,7 +88,16 @@ If the optional night-tariff helper is not configured in the custom integration,
 
 ### Install
 
-Use one of these methods:
+Recommended HACS installation:
+
+1. In HACS, open `Integrations`.
+2. Open the three-dot menu and choose `Custom repositories`.
+3. Enter `OskarSidor/ha-negative-price-export-guard` or `https://github.com/OskarSidor/ha-negative-price-export-guard` in the `Repository` field.
+4. Select `Integration` as the category and add the repository.
+5. Find and install `Negative Price Export Guard` in HACS.
+6. Restart Home Assistant.
+
+Manual alternative without HACS:
 
 1. Copy `custom_components/negative_price_export_guard` into:
 
@@ -96,9 +105,7 @@ Use one of these methods:
    config/custom_components/negative_price_export_guard
    ```
 
-2. Or add this repository as a custom repository in HACS and install it as an integration.
-
-Restart Home Assistant after installation.
+2. Restart Home Assistant.
 
 ### Add The Integration
 
