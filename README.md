@@ -37,13 +37,20 @@ Najdôležitejšie zdrojové entity sú OKTE ceny, Solcast predpoveď, denná sp
 
 ## Rýchla inštalácia custom integrácie
 
-1. Skopírujte priečinok `custom_components/negative_price_export_guard` do `config/custom_components/negative_price_export_guard`, alebo pridajte repozitár ako custom repository v HACS, ak ho používate týmto spôsobom.
-2. Reštartujte Home Assistant.
-3. Otvorte `Nastavenia -> Zariadenia a služby -> Pridať integráciu`.
-4. Vyhľadajte `Negative Price Export Guard`.
-5. Vyberte požadované zdrojové entity v sprievodcovi nastavením.
-6. Po vytvorení integrácie skontrolujte entity začínajúce na `export_optimizer_`.
-7. Najprv nechajte ochranu vypnutú alebo nastavte nízky maximálny exportný výkon, potom sledujte správanie počas najbližšieho záporného cenového okna.
+Odporúčaná cesta je cez HACS:
+
+1. V HACS otvorte `Integrations -> tri bodky -> Custom repositories`.
+2. Do poľa `Repository` vložte `OskarSidor/ha-negative-price-export-guard` alebo `https://github.com/OskarSidor/ha-negative-price-export-guard`.
+3. Ako kategóriu vyberte `Integration` a repozitár pridajte.
+4. V HACS nainštalujte `Negative Price Export Guard`.
+5. Reštartujte Home Assistant.
+6. Otvorte `Nastavenia -> Zariadenia a služby -> Pridať integráciu`.
+7. Vyhľadajte `Negative Price Export Guard`.
+8. Vyberte požadované zdrojové entity v sprievodcovi nastavením.
+9. Po vytvorení integrácie skontrolujte entity začínajúce na `export_optimizer_`.
+10. Najprv nechajte ochranu vypnutú alebo nastavte nízky maximálny exportný výkon, potom sledujte správanie počas najbližšieho záporného cenového okna.
+
+Alternatíva bez HACS: skopírujte priečinok `custom_components/negative_price_export_guard` do `config/custom_components/negative_price_export_guard` a potom reštartujte Home Assistant.
 
 Podrobný návod pre custom integráciu aj YAML verziu je v [Docs/Nastavenie.md](Docs/Nastavenie.md).
 
