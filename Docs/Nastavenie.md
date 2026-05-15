@@ -2,9 +2,9 @@
 
 Tento návod opisuje oba podporované spôsoby použitia Negative Price Export Guard v Home Assistant.
 
-Odporúčaný spôsob je **custom integrácia**. Pri prvom nastavení sa spýta na potrebné entity, overí dôležité jednotky, vytvorí ovládacie entity v UI a logiku drží v Pythone.
+Odporúčaný spôsob je inštalácia **custom integrácie** pomocou HACS. Pri prvom nastavení sa integrácia spýta na potrebné entity, overí dôležité jednotky, vytvorí ovládacie entity v UI a logiku drží v Pythone.
 
-Alternatívny spôsob je **YAML package**. Ostáva dostupný pre pokročilých používateľov, ktorí chcú mať celú logiku viditeľnú v YAML, ale vyžaduje ručnú výmenu entity ID a pozornejšiu údržbu.
+Alternatívny spôsob je **YAML package**. Ostáva dostupný pre pokročilých používateľov, ktorí chcú mať celú logiku viditeľnú v YAML, ale vyžaduje ručnú výmenu entity ID a pozornejšiu údržbu. Prípadne môže byť vhodná pre vlastníkov meničov od iných značiek ako Deye, ktorí potrebujú prispôsobiť kód pre ich menič.
 
 ## 1. Vyberte spôsob nastavenia
 
@@ -84,7 +84,7 @@ Home Assistant musí vedieť čítať SOC batérie, PV výkon, spotrebu domu, de
 
 Ak voliteľný pomocník nočného tarifu nie je v custom integrácii nastavený, integrácia použije fallback `0.054 EUR/kWh`.
 
-## 4. Nastavenie custom integrácie odporúčané
+## 4. Nastavenie custom integrácie (odporúčaný spôsob)
 
 ### Inštalácia
 
@@ -122,32 +122,32 @@ Sprievodca overí:
 - či existujú povinné entity,
 - či OKTE senzor má atribút `prices`,
 - či Solcast predpoveď má atribút `detailedForecast`,
-- či energetické senzory používajú `kWh`,
-- či výkonové senzory a exportné čísla používajú `W`,
-- či SOC batérie používa `%`.
+- či energetické senzory používajú jednotku `kWh`,
+- či výkonové senzory a exportné čísla používajú jednotku `W`,
+- či SOC batérie používa jednotku `%`.
 
 ### Vytvorené entity
 
-Integrácia vytvára entity s objektovým ID `export_optimizer_`. Dôležité príklady:
+Integrácia vytvára entity s objektovým ID `negative_price_export_guard_`. Dôležité príklady:
 
 | Entita | Význam |
 |---|---|
-| `switch.export_optimizer_guard_enabled` | Hlavné zapnutie alebo vypnutie aktívneho riadenia meniča |
-| `switch.export_optimizer_allow_battery_early_export` | Povolenie skorého strategického exportu z batérie |
-| `binary_sensor.export_optimizer_export_wanted` | Či integrácia požaduje `Export First` |
-| `binary_sensor.export_optimizer_export_active` | Či integrácia práve aktívne riadi export |
-| `number.export_optimizer_min_reserve_soc` | Minimálna rezerva batérie |
-| `number.export_optimizer_consumption_margin_kwh` | Bezpečnostná rezerva odhadu spotreby |
-| `number.export_optimizer_typical_idle_power_w` | Minimálna spotreba domu vrátane vlastnej spotreby meniča |
-| `number.export_optimizer_export_surplus_threshold_kwh` | Minimálny očakávaný prebytok pred zásahom |
-| `number.export_optimizer_min_export_power_w` | Minimálny exportný výkon pri povolenom exporte z batérie |
-| `number.export_optimizer_max_export_power_w` | Maximálny riadený exportný výkon |
-| `number.export_optimizer_price_floor` | Cenová hranica, pod ktorou je export nežiaduci |
-| `time.export_optimizer_solar_window_start` | Začiatok denného učiaceho a riadiaceho okna |
-| `time.export_optimizer_solar_window_end` | Koniec denného učiaceho a riadiaceho okna |
-| `sensor.export_optimizer_recommended_export_power` | Odporúčaný strategický exportný výkon |
-| `sensor.export_optimizer_expected_load_power` | Aktuálny očakávaný výkon spotreby z krivky |
-| `sensor.export_optimizer_solar_window_load_7d_average` | 7d priemer a atribúty krivky spotreby |
+| `switch.negative_price_export_guard_ochrana_exportu_zapnuta` | Hlavné zapnutie alebo vypnutie aktívneho riadenia meniča |
+| `switch.negative_price_export_guard_povolit_skory_export_z_baterie` | Povolenie skorého strategického exportu z batérie |
+| `binary_sensor.negative_price_export_guard_export_pozadovany` | Či integrácia požaduje `Export First` |
+| `binary_sensor.negative_price_export_guard_export_je_aktivne_riadeny` | Či integrácia práve aktívne riadi export |
+| `number.negative_price_export_guard_minimalna_rezerva_baterie` | Minimálna rezerva batérie |
+| `number.negative_price_export_guard_rezerva_odhadu_spotreby` | Bezpečnostná rezerva odhadu spotreby |
+| `number.negative_price_export_guard_typicka_minimalna_spotreba_domu` | Minimálna spotreba domu vrátane vlastnej spotreby meniča |
+| `number.negative_price_export_guard_minimalny_ocakavany_prebytok` | Minimálny očakávaný prebytok pred zásahom |
+| `number.negative_price_export_guard_minimalny_riadeny_vykon_exportu` | Minimálny exportný výkon pri povolenom exporte z batérie |
+| `number.negative_price_export_guard_maximalny_riadeny_vykon_exportu` | Maximálny riadený exportný výkon (podľa vašej MRK) |
+| `number.negative_price_export_guard_minimalna_spotova_cena_pre_export` | Cenová hranica, pod ktorou je export nežiaduci |
+| `time.negative_price_export_guard_zaciatok_solarneho_okna` | Začiatok denného učiaceho a riadiaceho okna |
+| `time.negative_price_export_guard_koniec_solarneho_okna` | Koniec denného učiaceho a riadiaceho okna |
+| `sensor.negative_price_export_guard_odporucany_vykon_exportu` | Odporúčaný strategický exportný výkon |
+| `sensor.negative_price_export_guard_ocakavany_vykon_spotreby_domu` | Aktuálny očakávaný výkon spotreby z krivky |
+| `sensor.negative_price_export_guard_priemer_spotreby_v_solarnom_okne_7d` | 7d priemer a atribúty krivky spotreby |
 
 ![Prehľad entít projektu](Screenshots/Export_optimizer_entities.png)
 
@@ -157,15 +157,15 @@ Začnite konzervatívne:
 
 | Entita | Odporúčaná hodnota |
 |---|---:|
-| `number.export_optimizer_min_reserve_soc` | `30-40` |
-| `number.export_optimizer_consumption_margin_kwh` | `1-2` |
-| `number.export_optimizer_typical_idle_power_w` | bežný základný odber, napríklad `200-700 W` |
-| `number.export_optimizer_export_surplus_threshold_kwh` | `1` |
-| `number.export_optimizer_min_export_power_w` | `500 W` |
-| `number.export_optimizer_max_export_power_w` | začnite nízko a zvyšujte postupne |
-| `number.export_optimizer_price_floor` | `0 EUR/MWh` |
+| `number.negative_price_export_guard_minimalna_rezerva_baterie` | `30-40` |
+| `number.negative_price_export_guard_rezerva_odhadu_spotreby` | `1-2` |
+| `number.negative_price_export_guard_typicka_minimalna_spotreba_domu` | bežný základný odber, napríklad `200-700 W` |
+| `number.negative_price_export_guard_minimalny_ocakavany_prebytok` | `1` |
+| `number.negative_price_export_guard_minimalny_riadeny_vykon_exportu` | `500 W` |
+| `number.negative_price_export_guard_maximalny_riadeny_vykon_exportu` | začnite nízko a zvyšujte postupne |
+| `number.negative_price_export_guard_minimalna_spotova_cena_pre_export` | `0 EUR/MWh` |
 
-Nechajte `switch.export_optimizer_guard_enabled` vypnutý, kým neskontrolujete vypočítané senzory. Potom ho zapnite na reálne testovacie okno.
+Nechajte `switch.negative_price_export_guard_ochrana_exportu_zapnuta` vypnutý, kým neskontrolujete vypočítané senzory. Potom ho zapnite na reálne testovacie okno.
 
 ## 5. Nastavenie YAML package manuálne
 
