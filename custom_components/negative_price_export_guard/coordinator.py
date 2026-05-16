@@ -610,35 +610,41 @@ class NegativePriceExportGuardCoordinator(DataUpdateCoordinator[dict[str, Any]])
         previous_idx = self._previous_interval_index(now, options)
 
         if now > start and now <= end and previous_idx is not None:
-            last_idx = self._history.get(ATTR_CURRENT_INTERVAL_INDEX)
-            has_previous_baseline = (
-                last_idx is not None and int(last_idx) == previous_idx - 1
-            )
-            first_sample_mid_window = (
-                len(old_intervals) == 0 and previous_idx > 0 and not has_previous_baseline
-            )
-            if not first_sample_mid_window:
-                previous_total = (
-                    self._history.get("solar_window_start_load_kwh", current_total)
-                    if len(old_intervals) == 0 and previous_idx == 0
-                    else self._history.get(ATTR_LAST_INTERVAL_TOTAL_KWH, current_total)
+            last_idx_value = self._history.get(ATTR_CURRENT_INTERVAL_INDEX)
+            last_idx = int(last_idx_value) if last_idx_value is not None else None
+            should_record_interval = last_idx is None or previous_idx > last_idx
+
+            if should_record_interval:
+                has_previous_baseline = (
+                    last_idx is not None and last_idx == previous_idx - 1
                 )
-                delta = round(max(current_total - float(previous_total), 0), 3)
-                interval = self._interval_dict(start, previous_idx, delta)
-                intervals = [
-                    item
-                    for item in old_intervals
-                    if int(item.get("index", -1)) != previous_idx
-                ]
-                intervals.append(interval)
-                intervals.sort(key=lambda item: int(item["index"]))
-                self._history[ATTR_TODAY_LOAD_CURVE] = {
-                    "date": today,
-                    "intervals": intervals,
-                }
-            self._history[ATTR_LAST_INTERVAL_TOTAL_KWH] = current_total
-            self._history[ATTR_CURRENT_INTERVAL_INDEX] = previous_idx
-            changed = True
+                first_sample_mid_window = (
+                    len(old_intervals) == 0
+                    and previous_idx > 0
+                    and not has_previous_baseline
+                )
+                if not first_sample_mid_window:
+                    previous_total = (
+                        self._history.get("solar_window_start_load_kwh", current_total)
+                        if len(old_intervals) == 0 and previous_idx == 0
+                        else self._history.get(ATTR_LAST_INTERVAL_TOTAL_KWH, current_total)
+                    )
+                    delta = round(max(current_total - float(previous_total), 0), 3)
+                    interval = self._interval_dict(start, previous_idx, delta)
+                    intervals = [
+                        item
+                        for item in old_intervals
+                        if int(item.get("index", -1)) != previous_idx
+                    ]
+                    intervals.append(interval)
+                    intervals.sort(key=lambda item: int(item["index"]))
+                    self._history[ATTR_TODAY_LOAD_CURVE] = {
+                        "date": today,
+                        "intervals": intervals,
+                    }
+                self._history[ATTR_LAST_INTERVAL_TOTAL_KWH] = current_total
+                self._history[ATTR_CURRENT_INTERVAL_INDEX] = previous_idx
+                changed = True
 
         if now >= end and self._history.get("last_archived_date") != today:
             intervals = self._history.get(ATTR_TODAY_LOAD_CURVE, {}).get(
