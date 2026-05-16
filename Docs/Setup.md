@@ -2,9 +2,9 @@
 
 This guide covers both supported ways to use Negative Price Export Guard in Home Assistant.
 
-The recommended path is the **custom integration**. It asks for the required entities during onboarding, validates important units, creates UI-adjustable tuning entities, and keeps the logic in Python.
+The recommended path is installing the **custom integration** through HACS. During onboarding, the integration asks for the required entities, validates important units, creates UI-adjustable tuning entities, and keeps the logic in Python.
 
-The alternative path is the **YAML package**. It remains available for advanced users who prefer a fully visible YAML implementation, but it requires manual entity replacement and more careful maintenance.
+The alternative path is the **YAML package**. It remains available for advanced users who prefer a fully visible YAML implementation, but it requires manual entity replacement and more careful maintenance. It may also be useful for owners of inverter brands other than Deye who need to adapt the code for their inverter.
 
 ## 1. Choose Your Setup Method
 
@@ -84,7 +84,7 @@ Home Assistant must be able to read battery SOC, PV power, house load power, dai
 
 If the optional night-tariff helper is not configured in the custom integration, the integration falls back to `0.054 EUR/kWh`.
 
-## 4. Custom Integration Setup Recommended
+## 4. Custom Integration Setup (Recommended)
 
 ### Install
 
@@ -122,32 +122,32 @@ The setup flow validates:
 - required entities exist,
 - OKTE sensor has a `prices` attribute,
 - Solcast forecast has a `detailedForecast` attribute,
-- energy sensors use `kWh`,
-- power sensors and export-power numbers use `W`,
-- battery SOC uses `%`.
+- energy sensors use the `kWh` unit,
+- power sensors and export-power numbers use the `W` unit,
+- battery SOC uses the `%` unit.
 
 ### Created Entities
 
-The integration creates entities with `export_optimizer_` object IDs. Important examples:
+The integration creates entities with the `negative_price_export_guard_` object ID. Important examples:
 
 | Entity | Meaning |
 |---|---|
-| `switch.export_optimizer_guard_enabled` | Main enable/disable switch for active inverter control |
-| `switch.export_optimizer_allow_battery_early_export` | Allows strategic early export from battery |
-| `binary_sensor.export_optimizer_export_wanted` | Whether the integration wants `Export First` |
-| `binary_sensor.export_optimizer_export_active` | Whether the integration is actively controlling export |
-| `number.export_optimizer_min_reserve_soc` | Minimum battery reserve |
-| `number.export_optimizer_consumption_margin_kwh` | Remaining-load safety margin |
-| `number.export_optimizer_typical_idle_power_w` | Minimum expected house load including inverter self-consumption |
-| `number.export_optimizer_export_surplus_threshold_kwh` | Minimum expected surplus before intervention |
-| `number.export_optimizer_min_export_power_w` | Minimum export power when battery export is allowed |
-| `number.export_optimizer_max_export_power_w` | Maximum controlled export power |
-| `number.export_optimizer_price_floor` | Price floor below which export is considered unwanted |
-| `time.export_optimizer_solar_window_start` | Start of the daytime learning/control window |
-| `time.export_optimizer_solar_window_end` | End of the daytime learning/control window |
-| `sensor.export_optimizer_recommended_export_power` | Recommended strategic export power |
-| `sensor.export_optimizer_expected_load_power` | Current expected house load from the load curve |
-| `sensor.export_optimizer_solar_window_load_7d_average` | 7-day average plus load-curve attributes |
+| `switch.negative_price_export_guard_ochrana_exportu_zapnuta` | Main enable/disable switch for active inverter control |
+| `switch.negative_price_export_guard_povolit_skory_export_z_baterie` | Allows strategic early export from battery |
+| `binary_sensor.negative_price_export_guard_export_pozadovany` | Whether the integration wants `Export First` |
+| `binary_sensor.negative_price_export_guard_export_je_aktivne_riadeny` | Whether the integration is actively controlling export |
+| `number.negative_price_export_guard_minimalna_rezerva_baterie` | Minimum battery reserve |
+| `number.negative_price_export_guard_rezerva_odhadu_spotreby` | Remaining-load safety margin |
+| `number.negative_price_export_guard_typicka_minimalna_spotreba_domu` | Minimum house load including inverter self-consumption |
+| `number.negative_price_export_guard_minimalny_ocakavany_prebytok` | Minimum expected surplus before intervention |
+| `number.negative_price_export_guard_minimalny_riadeny_vykon_exportu` | Minimum export power when battery export is allowed |
+| `number.negative_price_export_guard_maximalny_riadeny_vykon_exportu` | Maximum controlled export power, set according to your grid limit |
+| `number.negative_price_export_guard_minimalna_spotova_cena_pre_export` | Price floor below which export is considered unwanted |
+| `time.negative_price_export_guard_zaciatok_solarneho_okna` | Start of the daytime learning/control window |
+| `time.negative_price_export_guard_koniec_solarneho_okna` | End of the daytime learning/control window |
+| `sensor.negative_price_export_guard_odporucany_vykon_exportu` | Recommended strategic export power |
+| `sensor.negative_price_export_guard_ocakavany_vykon_spotreby_domu` | Current expected house load from the load curve |
+| `sensor.negative_price_export_guard_priemer_spotreby_v_solarnom_okne_7d` | 7-day average plus load-curve attributes |
 
 ![Example entity overview](Screenshots/Export_optimizer_entities.png)
 
@@ -157,15 +157,15 @@ Start conservatively:
 
 | Entity | Suggested value |
 |---|---:|
-| `number.export_optimizer_min_reserve_soc` | `30-40` |
-| `number.export_optimizer_consumption_margin_kwh` | `1-2` |
-| `number.export_optimizer_typical_idle_power_w` | your normal base load, for example `200-700 W` |
-| `number.export_optimizer_export_surplus_threshold_kwh` | `1` |
-| `number.export_optimizer_min_export_power_w` | `500 W` |
-| `number.export_optimizer_max_export_power_w` | start low, then increase gradually |
-| `number.export_optimizer_price_floor` | `0 EUR/MWh` |
+| `number.negative_price_export_guard_minimalna_rezerva_baterie` | `30-40` |
+| `number.negative_price_export_guard_rezerva_odhadu_spotreby` | `1-2` |
+| `number.negative_price_export_guard_typicka_minimalna_spotreba_domu` | your normal base load, for example `200-700 W` |
+| `number.negative_price_export_guard_minimalny_ocakavany_prebytok` | `1` |
+| `number.negative_price_export_guard_minimalny_riadeny_vykon_exportu` | `500 W` |
+| `number.negative_price_export_guard_maximalny_riadeny_vykon_exportu` | start low, then increase gradually |
+| `number.negative_price_export_guard_minimalna_spotova_cena_pre_export` | `0 EUR/MWh` |
 
-Keep `switch.export_optimizer_guard_enabled` off until you have checked the calculated sensors. Then enable it for a real test window.
+Keep `switch.negative_price_export_guard_ochrana_exportu_zapnuta` off until you have checked the calculated sensors. Then enable it for a real test window.
 
 ## 5. YAML Package Setup Manual
 
@@ -241,7 +241,7 @@ Do not restart until the check passes.
 
 ## 7. Load Curve
 
-`sensor.export_optimizer_solar_window_load_7d_average` contains these attributes:
+`sensor.negative_price_export_guard_priemer_spotreby_v_solarnom_okne_7d` contains these attributes:
 
 | Attribute | Meaning |
 |---|---|
@@ -275,19 +275,23 @@ Install [auto-entities](https://github.com/thomasloven/lovelace-auto-entities) f
 type: custom:auto-entities
 card:
   type: entities
-  title: Export Optimizér
+  title: Export Optimizer
   show_header_toggle: false
+filter:
+  include:
+    - entity_id: /negative_price_export_guard/
+      sort:
+        method: entity_id
+```
+
+For the YAML package, use the `export_optimizer` filter and hide technical helpers that users normally do not edit:
+
+```yaml
 filter:
   include:
     - entity_id: /export_optimizer/
       sort:
         method: entity_id
-```
-
-For the YAML package, you may hide technical helpers that users normally do not edit:
-
-```yaml
-filter:
   exclude:
     - entity_id: input_number.export_optimizer_solar_window_start_load_kwh
     - entity_id: input_datetime.export_optimizer_solar_window_start_recorded
@@ -301,7 +305,7 @@ Install [apexcharts-card](https://github.com/RomRider/apexcharts-card) first.
 type: custom:apexcharts-card
 header:
   show: true
-  title: Krivka očakávanej spotreby domu počas dňa
+  title: Expected house-load curve during the day
   show_states: false
 graph_span: 11h
 span:
@@ -309,7 +313,7 @@ span:
   offset: +7h
 now:
   show: true
-  label: Teraz
+  label: Now
 apex_config:
   chart:
     height: 300
@@ -320,9 +324,22 @@ apex_config:
   yaxis:
     title:
       text: W
+    labels:
+      formatter: |
+        EVAL:function(value) {
+          return Math.round(value);
+        }
+  tooltip:
+    x:
+      format: HH:mm
+    "y":
+      formatter: |
+        EVAL:function(value) {
+          return Math.round(value) + " W";
+        }
 series:
-  - entity: sensor.export_optimizer_solar_window_load_7d_average
-    name: Očakávaná spotreba
+  - entity: sensor.negative_price_export_guard_priemer_spotreby_v_solarnom_okne_7d
+    name: Expected load
     type: line
     color: "#f59e0b"
     stroke_width: 4
@@ -331,13 +348,16 @@ series:
     data_generator: |
       const curve = entity.attributes.load_curve || [];
       const now = new Date();
-      return curve.map((item) => {
+
+      function point(item) {
         const [h, m, s] = (item.start || "00:00:00").split(":").map(Number);
         const date = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, s || 0);
         return [date.getTime(), Number(item.power_w || 0)];
-      });
-  - entity: sensor.export_optimizer_solar_window_load_7d_average
-    name: Dnes namerané
+      }
+
+      return curve.map(point);
+  - entity: sensor.negative_price_export_guard_priemer_spotreby_v_solarnom_okne_7d
+    name: Measured today
     type: line
     stroke_width: 2
     opacity: 0.9
@@ -346,14 +366,57 @@ series:
     data_generator: |
       const intervals = entity.attributes.today_load_curve?.intervals || [];
       const now = new Date();
-      return intervals.map((item) => {
+
+      function point(item) {
         const [h, m, s] = (item.start || "00:00:00").split(":").map(Number);
         const date = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, s || 0);
         return [date.getTime(), Number(item.consumption_kwh || 0) * 4000];
-      });
+      }
+
+      return intervals.map(point);
+  - entity: sensor.negative_price_export_guard_priemer_spotreby_v_solarnom_okne_7d
+    name: Yesterday
+    type: line
+    color: "#94a3b8"
+    opacity: 0.4
+    stroke_width: 2
+    show:
+      legend_value: false
+    data_generator: |
+      const day = (entity.attributes.past_load_curves || [])[0];
+      if (!day?.intervals) return [];
+      const now = new Date();
+
+      function point(item) {
+        const [h, m, s] = (item.start || "00:00:00").split(":").map(Number);
+        const date = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, s || 0);
+        return [date.getTime(), Number(item.consumption_kwh || 0.5) * 4000];
+      }
+
+      return day.intervals.map(point);
+  - entity: sensor.negative_price_export_guard_priemer_spotreby_v_solarnom_okne_7d
+    name: Day before yesterday
+    type: line
+    color: "#94a3b8"
+    opacity: 0.4
+    stroke_width: 2
+    show:
+      legend_value: false
+    data_generator: |
+      const day = (entity.attributes.past_load_curves || [])[1];
+      if (!day?.intervals) return [];
+      const now = new Date();
+
+      function point(item) {
+        const [h, m, s] = (item.start || "00:00:00").split(":").map(Number);
+        const date = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, s || 0);
+        return [date.getTime(), Number(item.consumption_kwh || 0) * 4000];
+      }
+
+      return day.intervals.map(point);
 ```
 
-You can add past-day series from `past_load_curves` in the same way if you want to compare history.
+You can add more past-day series from `past_load_curves` in the same way if you want to compare more history.
 
 ## 9. Accounting Sensors
 
@@ -361,10 +424,10 @@ The project exposes cumulative result sensors:
 
 | Entity | Meaning |
 |---|---|
-| `sensor.export_optimizer_exported_energy_during_negative_spot_price` | kWh exported during negative spot prices |
-| `sensor.export_optimizer_exported_energy_by_automation` | kWh exported while active control was on |
-| `sensor.export_optimizer_automation_export_savings` | Estimated saved value |
-| `sensor.export_optimizer_negative_price_wasted_potential` | Estimated lost value during negative prices |
+| `sensor.negative_price_export_guard_exportovana_energia_pri_zapornej_spotovej_cene` | kWh exported during negative spot prices |
+| `sensor.negative_price_export_guard_energia_exportovana_automatizaciou` | kWh exported while active control was on |
+| `sensor.negative_price_export_guard_uspora_z_riadeneho_exportu` | Estimated saved value |
+| `sensor.negative_price_export_guard_premrhany_potencial_pri_zapornej_cene` | Estimated lost value during negative prices |
 
 For daily values, use graph/statistics cards that calculate a daily difference.
 
@@ -372,14 +435,14 @@ For daily values, use graph/statistics cards that calculate a daily difference.
 
 ### Spot Price Does Not Match The Current Time
 
-Use `sensor.export_optimizer_okte_spot_price` in the custom integration or `sensor.export_optimizer_okte_spotova_cena` in the YAML package. These read the OKTE `prices` attribute.
+Use `sensor.negative_price_export_guard_okte_spotova_cena` in the custom integration or `sensor.export_optimizer_okte_spotova_cena` in the YAML package. These read the OKTE `prices` attribute.
 
 ### Battery Discharges More Than Desired
 
 Increase the minimum reserve SOC or disable early battery export:
 
 ```text
-switch.export_optimizer_allow_battery_early_export
+switch.negative_price_export_guard_povolit_skory_export_z_baterie
 ```
 
 For YAML, the equivalent is:
@@ -396,7 +459,7 @@ Check:
 switch.inverter_export_surplus
 number.inverter_export_surplus_power
 number.solarny_menic_grid_max_export_power
-number.export_optimizer_max_export_power_w
+number.negative_price_export_guard_maximalny_riadeny_vykon_exportu
 ```
 
 For YAML, the project maximum is:

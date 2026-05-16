@@ -1,8 +1,10 @@
 # Home Assistant: ochrana exportu pri záporných spotových cenách
 
-Projekt pre Home Assistant, ktorý pomáha majiteľom fotovoltiky obmedziť zbytočný export elektriny do siete počas záporných spotových cien. Vznikol pre slovenské podmienky, hlavne pre služby typu virtuálna batéria alebo Požičovňa, kde export počas záporných cien nemusí mať hodnotu.
+Projekt pre Home Assistant, ktorý pomáha majiteľom fotovoltiky s batériou maximalizovať export počas kladných cien na trhu a znížiť zbytočný export elektriny do siete počas záporných spotových cien. Vznikol po zavedení zmien v podmienkach Požičovne elektriny u dodávateľa Magna Energia, po ktorých export počas záporných cien nie je započítaný do Požičovne.
 
-Typický problém: batéria sa počas slnečného dňa nabije doplna, FV systém má prebytok, ale OKTE spotová cena je záporná. Projekt sa snaží vytvoriť miesto v batérii ešte pred záporným cenovým oknom a zároveň pri plnej batérii obmedziť zbytočné krátenie PV výroby.
+Typický problém: batéria sa ráno alebo počas slnečného dňa nabije doplna, FV systém má prebytok, ale OKTE spotová cena je záporná. Tento projekt sa snaží vytvoriť miesto v batérii ešte pred záporným cenovým oknom a zároveň pri plnej batérii obmedziť zbytočné krátenie PV výroby.
+
+Projekt bol vytvorený na použitie primárne s meničmi Deye, ale môže v prípade úprav neskôr fungovať aj s meničmi iných značiek.
 
 English version: [README.en.md](README.en.md)
 
@@ -17,10 +19,10 @@ Alternatívne je k dispozícii aj pôvodný **YAML package** [`Packages/negative
 - Počíta aktuálnu OKTE spotovú cenu z atribútu `prices`, nie iba zo stavu senzora.
 - Sleduje budúce cenové obdobia pod nastavenou hranicou do konca solárneho okna.
 - Učí sa spotrebu domu v solárnom okne z posledných 7 dní.
-- Vytvára 15-minútovú krivku očakávanej spotreby domu.
+- Vytvára krivku očakávanej spotreby domu podľa historickej spotreby v 15-minútových intervaloch.
 - Používa Solcast dennú predpoveď, detailnú predpoveď a senzor zostávajúcej výroby dnes.
 - Počíta očakávaný prebytok po zohľadnení spotreby a voľnej kapacity batérie.
-- Prepína menič do `Export First` iba vtedy, keď treba strategicky vytvoriť miesto v batérii.
+- Prepína menič do režimu `Export First` iba vtedy, keď treba strategicky vytvoriť miesto v batérii.
 - Pri vypnutom skorom exporte z batérie obmedzí výkon len na aktuálny PV prebytok.
 - Pri plnej batérii vie zvýšiť limit exportu, aby menič zbytočne nekrátil PV výrobu.
 - Počíta export počas záporných cien, export automatizáciou, odhad úspory a stratený potenciál.
@@ -54,17 +56,13 @@ Alternatíva bez HACS: skopírujte priečinok `custom_components/negative_price_
 
 Podrobný návod pre custom integráciu aj YAML verziu je v [Docs/Nastavenie.md](Docs/Nastavenie.md).
 
-## YAML package
+## YAML verzia projektu
 
-YAML verzia je stále súčasťou repozitára, ale je to manuálna cesta. Po skopírovaní package súboru musíte ručne nahradiť entity ID podľa svojej inštalácie a spustiť kontrolu konfigurácie Home Assistant.
+YAML verzia je stále súčasťou repozitára, ale je to manuálny spôsob využitia tohoto projektu. Po skopírovaní package súboru musíte ručne nahradiť entity ID podľa svojej inštalácie a spustiť kontrolu konfigurácie Home Assistant.
 
 Použite ju hlavne vtedy, ak nechcete custom integráciu alebo si chcete logiku prispôsobiť priamo v YAML.
 
 ## Screenshoty
-
-Prehľad entít vytvorených projektom:
-
-![Prehľad entít Export Optimizéra](Docs/Screenshots/Export_optimizer_entities.png)
 
 Krivka očakávanej spotreby domu:
 
